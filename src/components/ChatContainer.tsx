@@ -22,11 +22,13 @@ const ChatContainer: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-4 chat-container"
+      className="flex-1 overflow-y-auto p-6 chat-container flex flex-col items-center"
     >
-      {filteredMessages.map(message => (
-        <ChatMessage key={message.id} message={message} />
-      ))}
+      <div className="w-full max-w-4xl"> {/* Center container with max width */}
+        {filteredMessages.map(message => (
+          <ChatMessage key={message.id} message={message} />
+        ))}
+      </div>
     </div>
   );
 };
