@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { VoiceState } from "@/types";
 
 interface UseVoiceInputProps {
@@ -10,132 +10,103 @@ const useVoiceInput = ({ onTranscriptComplete }: UseVoiceInputProps) => {
   const [voiceState, setVoiceState] = useState<VoiceState>({
     isRecording: false,
     transcript: "",
-    isProcessing: false
+    isProcessing: false,
   });
-  
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const timeoutRef = useRef<number | null>(null);
 
-  const startRecording = useCallback(() => {
-    try {
-      // Check if browser supports SpeechRecognition
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        alert("Speech recognition is not supported in your browser");
-        return;
-      }
+  const recognitionRef = useRef<any>(null);
 
-      // Use the appropriate SpeechRecognition constructor
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  // Initialize speech recognition once on mount
+  useEffect(() => {
+    // Check which speech recognition API is available
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
       
-      // Create a new instance
-      recognitionRef.current = new SpeechRecognition();
-      
-      // Set properties
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
-      
-      // Start recording
-      recognitionRef.current.start();
-      
-      setVoiceState(prev => ({
-        ...prev,
-        isRecording: true,
-        transcript: ""
-      }));
-      
-      // Set up event handlers
-      recognitionRef.current.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-        
+      recognition.onstart = () => {
+        setVoiceState(prev => ({ ...prev, isRecording: true }));
+      };
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = "";
+        let finalTranscript = "";
+
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
-          
           if (event.results[i].isFinal) {
             finalTranscript += transcript;
           } else {
             interimTranscript += transcript;
           }
         }
-        
-        const fullTranscript = finalTranscript || interimTranscript;
-        
+
         setVoiceState(prev => ({
           ...prev,
-          transcript: fullTranscript
+          transcript: finalTranscript || interimTranscript,
         }));
+      };
+
+      recognition.onend = () => {
+        const { transcript } = voiceState;
         
-        // Reset silence detection timer
-        if (timeoutRef.current) {
-          window.clearTimeout(timeoutRef.current);
+        if (transcript) {
+          setVoiceState(prev => ({ ...prev, isProcessing: true }));
+          onTranscriptComplete(transcript);
         }
         
-        // Set new silence detection timer
-        timeoutRef.current = window.setTimeout(() => {
-          stopRecording();
-        }, 2000); // Stop after 2 seconds of silence
+        setVoiceState(prev => ({ 
+          ...prev, 
+          isRecording: false, 
+          isProcessing: false,
+          transcript: "" 
+        }));
       };
-      
-      recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error", event);
-        stopRecording();
-      };
-      
-    } catch (error) {
-      console.error("Error starting voice recording:", error);
-      stopRecording();
+
+      recognitionRef.current = recognition;
+    } else {
+      console.error("Speech recognition not supported");
     }
-  }, []);
-  
-  const stopRecording = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-    
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    
-    setVoiceState(prev => {
-      // Only process if there's actual content
-      if (prev.transcript.trim()) {
-        onTranscriptComplete(prev.transcript.trim());
-      }
-      
-      return {
-        isRecording: false,
-        transcript: "",
-        isProcessing: prev.transcript.trim() ? true : false
-      };
-    });
-    
-    // Reset processing state after a short delay
-    setTimeout(() => {
-      setVoiceState(prev => ({...prev, isProcessing: false}));
-    }, 500);
-    
-  }, [onTranscriptComplete]);
-  
-  // Cleanup on unmount
-  useEffect(() => {
+
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.abort();
-      }
-      
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
+        try {
+          recognitionRef.current.stop();
+        } catch (error) {
+          console.error("Error stopping recognition:", error);
+        }
       }
     };
+  }, [onTranscriptComplete]);
+
+  const startRecording = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (error) {
+        console.error("Error starting recognition:", error);
+      }
+    } else {
+      console.error("Speech recognition not available");
+    }
   }, []);
-  
+
+  const stopRecording = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (error) {
+        console.error("Error stopping recognition:", error);
+      }
+    }
+  }, []);
+
   return {
     voiceState,
     startRecording,
-    stopRecording
+    stopRecording,
   };
 };
 
