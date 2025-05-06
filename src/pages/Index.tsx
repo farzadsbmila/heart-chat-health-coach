@@ -1,13 +1,62 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useEffect } from "react";
+import { ChatProvider, useChatContext } from "@/context/ChatContext";
+import ChatContainer from "@/components/ChatContainer";
+import ChatInput from "@/components/ChatInput";
+import ChatHeader from "@/components/ChatHeader";
+import VoiceActivationButton from "@/components/VoiceActivationButton";
+import useVoiceInput from "@/hooks/useVoiceInput";
+import { generateResponse } from "@/utils/healthResponses";
+
+const ChatPage: React.FC = () => {
+  const { addMessage, currentView } = useChatContext();
+  
+  const { voiceState, startRecording, stopRecording } = useVoiceInput({
+    onTranscriptComplete: (transcript) => {
+      // Add user message
+      addMessage("user", transcript);
+      
+      // Generate response
+      setTimeout(() => {
+        const response = generateResponse(transcript, currentView);
+        addMessage("assistant", response);
+      }, 500);
+    }
+  });
+
+  // Handle tab/view change message
+  useEffect(() => {
+    const viewMessages = {
+      risk: "I'm now focusing on your cardiovascular risk assessment. What would you like to know about your risk factors?",
+      recommendations: "Let's talk about heart health recommendations. I can provide guidance on diet, exercise, or medication adherence.",
+      coaching: "I'm here as your health coach. How can I help you implement heart-healthy changes in your daily life?",
+      general: "I'm your heart health assistant. How can I help you today?"
+    };
+    
+    // Only add the message when changing to a specific view from another view
+    if (currentView !== "general") {
+      addMessage("assistant", viewMessages[currentView]);
+    }
+  }, [currentView, addMessage]);
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-50">
+      <ChatHeader />
+      <ChatContainer />
+      <ChatInput />
+      <VoiceActivationButton 
+        onClick={voiceState.isRecording ? stopRecording : startRecording}
+        isRecording={voiceState.isRecording}
+      />
+    </div>
+  );
+};
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <ChatProvider>
+      <ChatPage />
+    </ChatProvider>
   );
 };
 
