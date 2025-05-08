@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -64,9 +63,9 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				heart: {
-					DEFAULT: '#9B87F5',
-					light: '#D3E4FD',
-					dark: '#7E68E8',
+					DEFAULT: '#E87668', // Warmer red/orange instead of purple
+					light: '#FDE1D3', // Light peach
+					dark: '#D85A4A', // Darker warm red
 					foreground: '#FFFFFF'
 				},
 				health: {
@@ -112,6 +111,11 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'pulse-light': 'pulse-light 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
 				'wave': 'wave 1.5s infinite ease-in-out'
+			},
+			boxShadow: {
+				'card': '0 4px 12px rgba(0, 0, 0, 0.15)',
+				'card-hover': '0 6px 16px rgba(0, 0, 0, 0.2)',
+				'section': '0 8px 24px rgba(0, 0, 0, 0.12)'
 			}
 		}
 	},

@@ -26,6 +26,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentView, setCurrentView] = useState<ChatView>("general");
   const [isFirstVisit, setIsFirstVisit] = useState<boolean>(true);
+  const [previousView, setPreviousView] = useState<ChatView>("general");
 
   useEffect(() => {
     // Load chat history from localStorage
@@ -43,7 +44,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Error parsing chat history:", error);
       }
     } else {
-      // First time greeting
+      // First time greeting - only add this for the general view
       addMessage(
         "assistant", 
         "Hello! I'm your Heart Health Assistant. I'm here to help you manage your cardiovascular health. How can I assist you today?\n\n• Check your risk profile\n• Get health recommendations\n• Talk to your health coach"
@@ -55,6 +56,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsFirstVisit(JSON.parse(visitStatus));
     }
   }, []);
+
+  // Track view changes without adding automatic messages
+  useEffect(() => {
+    setPreviousView(currentView);
+  }, [currentView]);
 
   // Save messages to localStorage when they change
   useEffect(() => {
