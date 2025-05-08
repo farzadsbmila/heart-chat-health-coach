@@ -39,7 +39,7 @@ const ChatContainer: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-6 chat-container flex flex-col items-center bg-background"
+      className="flex-1 overflow-y-auto p-6 chat-container flex flex-col items-center bg-gray-50"
     >
       <div className="w-full max-w-4xl"> {/* Center container with max width */}
         {/* Render fixed section if we're on a specialized view */}
