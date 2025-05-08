@@ -25,25 +25,14 @@ const ChatPage: React.FC = () => {
     }
   });
 
-  // Handle tab/view change message - only once when view changes
+  // Handle tab/view change - but don't add a message automatically
+  // We're removing the automatic message when changing views
   useEffect(() => {
     if (prevViewRef.current !== currentView) {
-      const viewMessages = {
-        risk: "I'm now focusing on your cardiovascular risk assessment. What would you like to know about your risk factors?",
-        recommendations: "Let's talk about heart health recommendations. I can provide guidance on diet, exercise, or medication adherence.",
-        coaching: "I'm here as your health coach. How can I help you implement heart-healthy changes in your daily life?",
-        general: "I'm your heart health assistant. How can I help you today?"
-      };
-      
-      // Only add the message when changing to a specific view from another view
-      if (currentView !== "general") {
-        addMessage("assistant", viewMessages[currentView]);
-      }
-      
-      // Update the ref to the current view
+      // Update the ref to the current view without adding a message
       prevViewRef.current = currentView;
     }
-  }, [currentView, addMessage]);
+  }, [currentView]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">

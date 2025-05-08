@@ -45,8 +45,8 @@ const ChatContainer: React.FC = () => {
         {/* Render fixed section if we're on a specialized view */}
         {currentView !== "general" && renderFixedSection()}
         
-        {/* Render chat messages */}
-        {filteredMessages.map(message => (
+        {/* Render chat messages - but only if we're on the general view */}
+        {currentView === "general" && filteredMessages.map(message => (
           <ChatMessage key={message.id} message={message} />
         ))}
       </div>
