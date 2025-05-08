@@ -17,13 +17,16 @@ const ChatContainer: React.FC = () => {
   const filteredMessages = messages.filter(message => 
     message.view === currentView || message.view === "general" || !message.view
   );
+  
+  // Check if there are any messages in the current view
+  const hasMessagesInCurrentView = filteredMessages.length > 0;
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    if (containerRef.current) {
+    if (containerRef.current && hasMessagesInCurrentView) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [filteredMessages]);
+  }, [filteredMessages, hasMessagesInCurrentView]);
 
   // Handle scroll to detect when to show minified header
   useEffect(() => {
@@ -79,8 +82,8 @@ const ChatContainer: React.FC = () => {
           {/* Render fixed section if we're on a specialized view */}
           {currentView !== "general" && renderFixedSection()}
           
-          {/* Render chat messages - but only if we're on the general view */}
-          {currentView === "general" && filteredMessages.map(message => (
+          {/* Render chat messages - for any view that has messages */}
+          {filteredMessages.map(message => (
             <ChatMessage key={message.id} message={message} />
           ))}
         </div>
