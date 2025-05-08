@@ -21,10 +21,17 @@ const ChatContainer: React.FC = () => {
   // Check if there are any messages in the current view
   const hasMessagesInCurrentView = filteredMessages.length > 0;
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom only when new messages are added
   useEffect(() => {
-    if (containerRef.current && hasMessagesInCurrentView) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    const container = containerRef.current;
+    if (container && hasMessagesInCurrentView) {
+      // Store the current scroll position
+      const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+      
+      // Only scroll to bottom if we were already near the bottom
+      if (wasAtBottom) {
+        container.scrollTop = container.scrollHeight;
+      }
     }
   }, [filteredMessages, hasMessagesInCurrentView]);
 
@@ -37,10 +44,10 @@ const ChatContainer: React.FC = () => {
     
     const handleScroll = () => {
       const scrollPosition = container.scrollTop;
-      const sectionHeight = fixedSection.offsetHeight;
+      const threshold = 100; // Show minified header after scrolling 100px
       
-      // Show minified header when scrolling past fixed section
-      setShowMinifiedHeader(scrollPosition > sectionHeight - 50);
+      // Show minified header when scrolling past threshold
+      setShowMinifiedHeader(scrollPosition > threshold);
     };
     
     container.addEventListener("scroll", handleScroll);
