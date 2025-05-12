@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
   BarChart, 
@@ -11,7 +10,7 @@ import {
   ResponsiveContainer 
 } from "recharts";
 import FixedSectionContainer from "./FixedSectionContainer";
-import { Frown } from "lucide-react";
+import { Smile, Frown, TrendingUp } from "lucide-react";
 
 const riskData = [
   { month: 'March', risk: 75 },
@@ -19,48 +18,200 @@ const riskData = [
   { month: 'May', risk: 58 }
 ];
 
+interface RiskOption {
+  label: string;
+  value: number; // Risk percentage contribution
+}
+
+const smokingOptions: RiskOption[] = [
+  { label: "0!", value: 0 },
+  { label: "0-1", value: 2 },
+  { label: "1-2", value: 3 },
+  { label: "2-3", value: 4 },
+  { label: "3-5", value: 6 },
+  { label: "5-10", value: 8 },
+  { label: "10-20", value: 10 },
+  { label: "> 20", value: 12 }
+];
+
+const activityOptions: RiskOption[] = [
+  { label: "None", value: 10 },
+  { label: "0-10 minutes", value: 8 },
+  { label: "10-30 minutes", value: 6 },
+  { label: "30-60 minutes", value: 3 },
+  { label: "> 60 minutes", value: 0 }
+];
+
 const RiskProfileSection: React.FC = () => {
+  const [showProgress, setShowProgress] = useState(false);
+  const [showEasyProgress, setShowEasyProgress] = useState(false);
+  const [selectedSmoking, setSelectedSmoking] = useState(smokingOptions[0]); // 0-1 cigarettes default
+  const [selectedActivity, setSelectedActivity] = useState(activityOptions[2]); // 10-30 minutes default
+  
+  // Calculate total risk based on factors
+  const calculateRisk = (): number => {
+    // Base risk of 10% plus contributions from factors
+    return Math.min(100, 10 + selectedSmoking.value + selectedActivity.value);
+  };
+
+  const totalRisk = calculateRisk();
+
+  const monthlyRisks = [
+    { month: 'March', risk: 10 },
+    { month: 'April', risk: 9 },
+    { month: 'May', risk: 7 }
+  ];
+
   return (
     <FixedSectionContainer>
-      <h2 className="text-2xl font-bold text-heart-dark mb-4">Your Cardiovascular Risk Profile</h2>
-      
-      {/* Risk Chart */}
-      <div className="mb-6 h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={riskData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" />
-            <YAxis domain={[0, 100]} />
-            <Tooltip />
-            <Bar dataKey="risk" fill="#9B87F5" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      
-      {/* Risk Factors */}
-      <div className="space-y-3 mb-6">
-        <h3 className="text-xl font-semibold">Contributing Risk Factors</h3>
-        
-        <div className="flex items-center p-3 bg-red-50 rounded-lg border border-red-200">
-          <Frown className="h-6 w-6 mr-3 text-red-500" />
-          <span className="text-lg font-medium">Smoking: <span className="text-red-600 font-bold">high risk</span></span>
-        </div>
-        
-        <div className="flex items-center p-3 bg-amber-50 rounded-lg border border-amber-200">
-          <Frown className="h-6 w-6 mr-3 text-amber-500" />
-          <span className="text-lg font-medium">Low physical activity: <span className="text-amber-600 font-bold">medium risk</span></span>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-heart-dark">Your Cardiovascular Risk Profile</h2>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => {
+              setShowProgress(!showProgress);
+              setShowEasyProgress(false);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
+          >
+            <TrendingUp className="h-4 w-4" />
+            {showProgress ? "Hide Progress" : "Show Progress"}
+          </button>
+          <button 
+            onClick={() => {
+              setShowEasyProgress(!showEasyProgress);
+              setShowProgress(false);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
+          >
+            {showEasyProgress ? "Hide Easy Progress" : "Show Easy Progress"}
+          </button>
         </div>
       </div>
-      
-      <div className="p-4 bg-heart bg-opacity-10 rounded-lg">
-        <p className="text-lg mb-3">Would you like to learn more about these contributing factors?</p>
-        <div className="flex flex-wrap gap-2">
-          <button className="px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors">
-            Smoking
-          </button>
-          <button className="px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors">
-            Physical Activity
-          </button>
+
+      {/* Current Risk Profile Grid */}
+      {!showProgress && !showEasyProgress && (
+        <div className="flex justify-center mb-6">
+          <div 
+            className="inline-grid grid-cols-6 bg-gray-50 rounded-lg"
+            style={{ gap: '3px' }}
+          >
+            {Array.from({ length: 36 }).map((_, index) => (
+              <div 
+                key={index}
+                className={`flex items-center justify-center transition-colors duration-300 ${
+                  index >= Math.floor(36 * (1 - totalRisk/100)) ? 'text-red-500' : 'text-green-500'
+                }`}
+                style={{ lineHeight: 0 }}
+              >
+                {index >= Math.floor(36 * (1 - totalRisk/100)) ? (
+                  <Frown className="h-[84px] w-[84px]" />
+                ) : (
+                  <Smile className="h-[84px] w-[84px]" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Original Progress Chart */}
+      {showProgress && (
+        <div className="mb-6 h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={riskData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis domain={[0, 100]} />
+              <Tooltip />
+              <Bar dataKey="risk" fill="#9B87F5" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Easy Progress - Three 6x6 Smiley Grids */}
+      {showEasyProgress && (
+        <div className="mb-2">
+          <div className="flex justify-center gap-16">
+            {monthlyRisks.map((monthData) => (
+              <div key={monthData.month} className="flex flex-col items-center gap-2">
+                <div 
+                  className="inline-grid grid-cols-6 bg-gray-50 rounded-lg"
+                  style={{ gap: '3px' }}
+                >
+                  {Array.from({ length: 36 }).map((_, index) => (
+                    <div 
+                      key={index}
+                      className={`flex items-center justify-center transition-colors duration-300 ${
+                        index >= (36 - monthData.risk) ? 'text-red-500' : 'text-green-500'
+                      }`}
+                      style={{ lineHeight: 0 }}
+                    >
+                      {index >= (36 - monthData.risk) ? (
+                        <Frown className="h-[60px] w-[60px]" />
+                      ) : (
+                        <Smile className="h-[60px] w-[60px]" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <span className="text-lg font-medium text-gray-700">{monthData.month}</span>
+              </div>
+            ))}
+          </div>
+          <div className="text-center text-lg text-gray-600 mt-2">
+            Your risk profile over the last three months
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Risk Factors */}
+      <div className="space-y-6 mb-6">
+        <h3 className="text-xl font-semibold">Adjust Risk Factors</h3>
+        
+        {/* Smoking Options */}
+        <div className="space-y-2">
+          <label className="block text-lg font-medium mb-2">
+            Cigarettes per day
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {smokingOptions.map((option) => (
+              <button
+                key={option.label}
+                onClick={() => setSelectedSmoking(option)}
+                className={`px-4 py-2 rounded-lg border transition-colors ${
+                  selectedSmoking.label === option.label
+                    ? 'bg-heart text-white border-heart'
+                    : 'border-gray-300 hover:border-heart'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Physical Activity Options */}
+        <div className="space-y-2">
+          <label className="block text-lg font-medium mb-2">
+            Daily exercise
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {activityOptions.map((option) => (
+              <button
+                key={option.label}
+                onClick={() => setSelectedActivity(option)}
+                className={`px-4 py-2 rounded-lg border transition-colors ${
+                  selectedActivity.label === option.label
+                    ? 'bg-heart text-white border-heart'
+                    : 'border-gray-300 hover:border-heart'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </FixedSectionContainer>
