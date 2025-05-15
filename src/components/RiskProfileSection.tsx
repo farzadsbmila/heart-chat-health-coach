@@ -6,11 +6,13 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip, 
+  Tooltip as RechartsTooltip,
   ResponsiveContainer 
 } from "recharts";
 import FixedSectionContainer from "./FixedSectionContainer";
 import { Smile, Frown, TrendingUp } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip as ReactTooltip } from 'react-tooltip';
 
 const riskData = [
   { month: 'March', risk: 75 },
@@ -62,6 +64,46 @@ const RiskProfileSection: React.FC = () => {
     { month: 'May', risk: 7 }
   ];
 
+  const GridWithTooltip = ({ risk }: { risk: number }) => (
+    <>
+      <div 
+        className="inline-grid grid-cols-6 bg-gray-50 rounded-lg"
+        style={{ gap: '3px' }}
+        data-tooltip-id="risk-tooltip"
+        data-tooltip-content={`Risk Level: ${Math.round((risk/36) * 100)}%`}
+      >
+        {Array.from({ length: 36 }).map((_, index) => (
+          <div 
+            key={index}
+            className={`flex items-center justify-center transition-colors duration-300 ${
+              index >= (36 - risk) ? 'text-red-500' : 'text-green-500'
+            }`}
+            style={{ lineHeight: 0 }}
+          >
+            {index >= (36 - risk) ? (
+              <Frown className="h-[60px] w-[60px]" />
+            ) : (
+              <Smile className="h-[60px] w-[60px]" />
+            )}
+          </div>
+        ))}
+      </div>
+      <ReactTooltip
+        id="risk-tooltip"
+        place="top"
+        float={true}
+        style={{
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          color: "#fff",
+          padding: "10px 20px",
+          borderRadius: "6px",
+          fontSize: "16px",
+          fontWeight: "500"
+        }}
+      />
+    </>
+  );
+
   return (
     <FixedSectionContainer>
       <div className="flex justify-between items-center mb-4">
@@ -92,26 +134,7 @@ const RiskProfileSection: React.FC = () => {
       {/* Current Risk Profile Grid */}
       {!showProgress && !showEasyProgress && (
         <div className="flex justify-center mb-6">
-          <div 
-            className="inline-grid grid-cols-6 bg-gray-50 rounded-lg"
-            style={{ gap: '3px' }}
-          >
-            {Array.from({ length: 36 }).map((_, index) => (
-              <div 
-                key={index}
-                className={`flex items-center justify-center transition-colors duration-300 ${
-                  index >= Math.floor(36 * (1 - totalRisk/100)) ? 'text-red-500' : 'text-green-500'
-                }`}
-                style={{ lineHeight: 0 }}
-              >
-                {index >= Math.floor(36 * (1 - totalRisk/100)) ? (
-                  <Frown className="h-[84px] w-[84px]" />
-                ) : (
-                  <Smile className="h-[84px] w-[84px]" />
-                )}
-              </div>
-            ))}
-          </div>
+          <GridWithTooltip risk={Math.floor(36 * (totalRisk/100))} />
         </div>
       )}
 
@@ -123,7 +146,7 @@ const RiskProfileSection: React.FC = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis domain={[0, 100]} />
-              <Tooltip />
+              <RechartsTooltip />
               <Bar dataKey="risk" fill="#9B87F5" />
             </BarChart>
           </ResponsiveContainer>
@@ -132,35 +155,16 @@ const RiskProfileSection: React.FC = () => {
 
       {/* Easy Progress - Three 6x6 Smiley Grids */}
       {showEasyProgress && (
-        <div className="mb-2">
+        <div>
           <div className="flex justify-center gap-16">
             {monthlyRisks.map((monthData) => (
-              <div key={monthData.month} className="flex flex-col items-center gap-2">
-                <div 
-                  className="inline-grid grid-cols-6 bg-gray-50 rounded-lg"
-                  style={{ gap: '3px' }}
-                >
-                  {Array.from({ length: 36 }).map((_, index) => (
-                    <div 
-                      key={index}
-                      className={`flex items-center justify-center transition-colors duration-300 ${
-                        index >= (36 - monthData.risk) ? 'text-red-500' : 'text-green-500'
-                      }`}
-                      style={{ lineHeight: 0 }}
-                    >
-                      {index >= (36 - monthData.risk) ? (
-                        <Frown className="h-[60px] w-[60px]" />
-                      ) : (
-                        <Smile className="h-[60px] w-[60px]" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <span className="text-lg font-medium text-gray-700">{monthData.month}</span>
+              <div key={monthData.month} className="flex flex-col items-center">
+                <GridWithTooltip risk={monthData.risk} />
+                <div className="text-lg font-medium text-gray-700">{monthData.month}</div>
               </div>
             ))}
           </div>
-          <div className="text-center text-lg text-gray-600 mt-2">
+          <div className="text-center text-lg text-gray-600">
             Your risk profile over the last three months
           </div>
         </div>
