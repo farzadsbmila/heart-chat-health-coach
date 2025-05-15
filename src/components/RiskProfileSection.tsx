@@ -10,7 +10,7 @@ import {
   ResponsiveContainer 
 } from "recharts";
 import FixedSectionContainer from "./FixedSectionContainer";
-import { Smile, Frown, TrendingUp } from "lucide-react";
+import { Smile, Frown, TrendingUp, Heart } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 
@@ -125,55 +125,79 @@ const RiskProfileSection: React.FC = () => {
     </>
   );
 
-  const RiskFactorsSection = () => (
-    <div className="space-y-6 mb-6">
-      <h3 className="text-xl font-semibold">Adjust Risk Factors</h3>
-      
-      {/* Smoking Options */}
-      <div className="space-y-2">
-        <label className="block text-lg font-medium mb-2">
-          Cigarettes per day
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {smokingOptions.map((option) => (
-            <button
-              key={option.label}
-              onClick={() => setSelectedSmoking(option)}
-              className={`px-4 py-2 rounded-lg border transition-colors ${
-                selectedSmoking.label === option.label
-                  ? 'bg-heart text-white border-heart'
-                  : 'border-gray-300 hover:border-heart'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
+  const RiskFactorsSection = () => {
+    // Helper function to get heart color based on index and total options
+    const getHeartColor = (index: number, total: number, reverse: boolean = false) => {
+      const opacity = reverse ? index / (total - 1) : 1 - (index / (total - 1));
+      return `rgba(239, 68, 68, ${opacity})`; // Using red-500 color with opacity
+    };
 
-      {/* Physical Activity Options */}
-      <div className="space-y-2">
-        <label className="block text-lg font-medium mb-2">
-          Daily exercise
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {activityOptions.map((option) => (
-            <button
-              key={option.label}
-              onClick={() => setSelectedActivity(option)}
-              className={`px-4 py-2 rounded-lg border transition-colors ${
-                selectedActivity.label === option.label
-                  ? 'bg-heart text-white border-heart'
-                  : 'border-gray-300 hover:border-heart'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+    return (
+      <div className="space-y-6 mb-6">
+        <h3 className="text-xl font-semibold">Adjust Risk Factors</h3>
+        
+        {/* Smoking Options */}
+        <div className="space-y-2">
+          <label className="block text-lg font-medium mb-2">
+            Cigarettes per day
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {smokingOptions.map((option, index) => (
+              <button
+                key={option.label}
+                onClick={() => setSelectedSmoking(option)}
+                className={`px-4 py-2 rounded-lg border transition-colors flex items-center gap-2 ${
+                  selectedSmoking.label === option.label
+                    ? 'bg-white border-heart border-[3px]'
+                    : 'border-gray-300 hover:border-heart'
+                }`}
+              >
+                <Heart 
+                  className={`h-5 w-5 ${
+                    selectedSmoking.label === option.label ? 'fill-current' : ''
+                  }`}
+                  style={{ 
+                    color: getHeartColor(index, smokingOptions.length) 
+                  }}
+                />
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Physical Activity Options */}
+        <div className="space-y-2">
+          <label className="block text-lg font-medium mb-2">
+            Daily exercise
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {activityOptions.map((option, index) => (
+              <button
+                key={option.label}
+                onClick={() => setSelectedActivity(option)}
+                className={`px-4 py-2 rounded-lg border transition-colors flex items-center gap-2 ${
+                  selectedActivity.label === option.label
+                    ? 'bg-white border-heart border-[3px]'
+                    : 'border-gray-300 hover:border-heart'
+                }`}
+              >
+                <Heart 
+                  className={`h-5 w-5 ${
+                    selectedActivity.label === option.label ? 'fill-current' : ''
+                  }`}
+                  style={{ 
+                    color: getHeartColor(index, activityOptions.length, true) 
+                  }}
+                />
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <FixedSectionContainer>
