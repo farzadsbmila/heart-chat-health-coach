@@ -44,19 +44,40 @@ const activityOptions: RiskOption[] = [
   { label: "> 60 minutes", value: 0 }
 ];
 
+// Add new interface and data for cardiovascular diseases
+interface CardiovascularRisk {
+  disease: string;
+  risk: number;
+  description?: string;
+}
+
+const cardiovascularRisks: CardiovascularRisk[] = [
+  { disease: "Heart Attack", risk: 15 },
+  { disease: "Angina", risk: 10 },
+  { disease: "Ischemic Heart Disease", risk: 25 },
+  { disease: "Atrial Fibrillation", risk: 10 }
+];
+
 const RiskProfileSection: React.FC = () => {
   const [showProgress, setShowProgress] = useState(false);
   const [showEasyProgress, setShowEasyProgress] = useState(false);
+  const [showDetailedRisks, setShowDetailedRisks] = useState(false);
   const [selectedSmoking, setSelectedSmoking] = useState(smokingOptions[0]); // 0-1 cigarettes default
   const [selectedActivity, setSelectedActivity] = useState(activityOptions[2]); // 10-30 minutes default
   
-  // Calculate total risk based on factors
-  const calculateRisk = (): number => {
-    // Base risk of 10% plus contributions from factors
-    return Math.min(100, 10 + selectedSmoking.value + selectedActivity.value);
+  // Update risk calculation to return individual risks
+  const calculateRisks = () => {
+    const baseAdjustment = selectedSmoking.value + selectedActivity.value;
+    return {
+      total: Math.min(100, 10 + baseAdjustment),
+      heartAttack: Math.min(100, 15 + baseAdjustment),
+      angina: Math.min(100, 10 + baseAdjustment),
+      ischemicHeart: Math.min(100, 25 + baseAdjustment),
+      atrialFibrillation: Math.min(100, 10 + baseAdjustment)
+    };
   };
 
-  const totalRisk = calculateRisk();
+  const risks = calculateRisks();
 
   const monthlyRisks = [
     { month: 'March', risk: 10 },
@@ -70,17 +91,17 @@ const RiskProfileSection: React.FC = () => {
         className="inline-grid grid-cols-6 bg-gray-50 rounded-lg"
         style={{ gap: '3px' }}
         data-tooltip-id="risk-tooltip"
-        data-tooltip-content={`Risk Level: ${Math.round((risk/36) * 100)}%`}
+        data-tooltip-content={`Risk Level: ${risk}%`}
       >
         {Array.from({ length: 36 }).map((_, index) => (
           <div 
             key={index}
             className={`flex items-center justify-center transition-colors duration-300 ${
-              index >= (36 - risk) ? 'text-red-500' : 'text-green-500'
+              index >= (36 - Math.floor(36 * (risk/100))) ? 'text-red-500' : 'text-green-500'
             }`}
             style={{ lineHeight: 0 }}
           >
-            {index >= (36 - risk) ? (
+            {index >= (36 - Math.floor(36 * (risk/100))) ? (
               <Frown className="h-[60px] w-[60px]" />
             ) : (
               <Smile className="h-[60px] w-[60px]" />
@@ -104,15 +125,66 @@ const RiskProfileSection: React.FC = () => {
     </>
   );
 
+  const RiskFactorsSection = () => (
+    <div className="space-y-6 mb-6">
+      <h3 className="text-xl font-semibold">Adjust Risk Factors</h3>
+      
+      {/* Smoking Options */}
+      <div className="space-y-2">
+        <label className="block text-lg font-medium mb-2">
+          Cigarettes per day
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {smokingOptions.map((option) => (
+            <button
+              key={option.label}
+              onClick={() => setSelectedSmoking(option)}
+              className={`px-4 py-2 rounded-lg border transition-colors ${
+                selectedSmoking.label === option.label
+                  ? 'bg-heart text-white border-heart'
+                  : 'border-gray-300 hover:border-heart'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Physical Activity Options */}
+      <div className="space-y-2">
+        <label className="block text-lg font-medium mb-2">
+          Daily exercise
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {activityOptions.map((option) => (
+            <button
+              key={option.label}
+              onClick={() => setSelectedActivity(option)}
+              className={`px-4 py-2 rounded-lg border transition-colors ${
+                selectedActivity.label === option.label
+                  ? 'bg-heart text-white border-heart'
+                  : 'border-gray-300 hover:border-heart'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <FixedSectionContainer>
-      <div className="flex justify-between items-center mb-4">
+      <div className="space-y-4 mb-4">
         <h2 className="text-2xl font-bold text-heart-dark">Your Cardiovascular Risk Profile</h2>
         <div className="flex gap-2">
           <button 
             onClick={() => {
               setShowProgress(!showProgress);
               setShowEasyProgress(false);
+              setShowDetailedRisks(false);
             }}
             className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
           >
@@ -123,19 +195,36 @@ const RiskProfileSection: React.FC = () => {
             onClick={() => {
               setShowEasyProgress(!showEasyProgress);
               setShowProgress(false);
+              setShowDetailedRisks(false);
             }}
             className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
           >
             {showEasyProgress ? "Hide Easy Progress" : "Show Easy Progress"}
           </button>
+          <button 
+            onClick={() => {
+              setShowDetailedRisks(!showDetailedRisks);
+              setShowProgress(false);
+              setShowEasyProgress(false);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
+          >
+            {showDetailedRisks ? "Hide Detailed Risks" : "Show Detailed Risks"}
+          </button>
         </div>
       </div>
 
       {/* Current Risk Profile Grid */}
-      {!showProgress && !showEasyProgress && (
-        <div className="flex justify-center mb-6">
-          <GridWithTooltip risk={Math.floor(36 * (totalRisk/100))} />
-        </div>
+      {!showProgress && !showEasyProgress && !showDetailedRisks && (
+        <>
+          <div className="flex flex-col items-center mb-6">
+            <GridWithTooltip risk={risks.total} />
+            <div className="text-lg font-medium text-gray-700 mt-2">
+              Risk: {risks.total}%
+            </div>
+          </div>
+          <RiskFactorsSection />
+        </>
       )}
 
       {/* Original Progress Chart */}
@@ -170,54 +259,53 @@ const RiskProfileSection: React.FC = () => {
         </div>
       )}
 
-      {/* Interactive Risk Factors */}
-      <div className="space-y-6 mb-6">
-        <h3 className="text-xl font-semibold">Adjust Risk Factors</h3>
-        
-        {/* Smoking Options */}
-        <div className="space-y-2">
-          <label className="block text-lg font-medium mb-2">
-            Cigarettes per day
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {smokingOptions.map((option) => (
-              <button
-                key={option.label}
-                onClick={() => setSelectedSmoking(option)}
-                className={`px-4 py-2 rounded-lg border transition-colors ${
-                  selectedSmoking.label === option.label
-                    ? 'bg-heart text-white border-heart'
-                    : 'border-gray-300 hover:border-heart'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+      {/* Detailed Cardiovascular Risks */}
+      {showDetailedRisks && (
+        <>
+          <div className="grid grid-cols-2 gap-8 mb-4">
+            <div className="flex flex-col items-center">
+              <h3 className="text-xl font-semibold text-heart-dark mb-4">
+                Heart Attack
+              </h3>
+              <GridWithTooltip risk={risks.heartAttack} />
+              <div className="text-lg font-medium text-gray-700 mt-2">
+                Risk: {risks.heartAttack}%
+              </div>
+            </div>
+            <div className="flex flex-col items-center">
+              <h3 className="text-xl font-semibold text-heart-dark mb-4">
+                Angina
+              </h3>
+              <GridWithTooltip risk={risks.angina} />
+              <div className="text-lg font-medium text-gray-700 mt-2">
+                Risk: {risks.angina}%
+              </div>
+            </div>
+            <div className="flex flex-col items-center">
+              <h3 className="text-xl font-semibold text-heart-dark mb-4">
+                Ischemic Heart Disease
+              </h3>
+              <GridWithTooltip risk={risks.ischemicHeart} />
+              <div className="text-lg font-medium text-gray-700 mt-2">
+                Risk: {risks.ischemicHeart}%
+              </div>
+            </div>
+            <div className="flex flex-col items-center">
+              <h3 className="text-xl font-semibold text-heart-dark mb-4">
+                Atrial Fibrillation
+              </h3>
+              <GridWithTooltip risk={risks.atrialFibrillation} />
+              <div className="text-lg font-medium text-gray-700 mt-2">
+                Risk: {risks.atrialFibrillation}%
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* Physical Activity Options */}
-        <div className="space-y-2">
-          <label className="block text-lg font-medium mb-2">
-            Daily exercise
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {activityOptions.map((option) => (
-              <button
-                key={option.label}
-                onClick={() => setSelectedActivity(option)}
-                className={`px-4 py-2 rounded-lg border transition-colors ${
-                  selectedActivity.label === option.label
-                    ? 'bg-heart text-white border-heart'
-                    : 'border-gray-300 hover:border-heart'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="text-center text-lg text-gray-600 mb-6">
+            Detailed risk assessment for specific cardiovascular conditions
           </div>
-        </div>
-      </div>
+          <RiskFactorsSection />
+        </>
+      )}
     </FixedSectionContainer>
   );
 };
