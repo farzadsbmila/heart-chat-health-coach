@@ -62,6 +62,7 @@ const RiskProfileSection: React.FC = () => {
   const [showProgress, setShowProgress] = useState(false);
   const [showEasyProgress, setShowEasyProgress] = useState(false);
   const [showDetailedRisks, setShowDetailedRisks] = useState(false);
+  const [showChartView, setShowChartView] = useState(false);
   const [selectedSmoking, setSelectedSmoking] = useState(smokingOptions[0]); // 0-1 cigarettes default
   const [selectedActivity, setSelectedActivity] = useState(activityOptions[2]); // 10-30 minutes default
   
@@ -209,6 +210,7 @@ const RiskProfileSection: React.FC = () => {
               setShowProgress(!showProgress);
               setShowEasyProgress(false);
               setShowDetailedRisks(false);
+              setShowChartView(false);
             }}
             className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
           >
@@ -220,6 +222,7 @@ const RiskProfileSection: React.FC = () => {
               setShowEasyProgress(!showEasyProgress);
               setShowProgress(false);
               setShowDetailedRisks(false);
+              setShowChartView(false);
             }}
             className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
           >
@@ -230,16 +233,28 @@ const RiskProfileSection: React.FC = () => {
               setShowDetailedRisks(!showDetailedRisks);
               setShowProgress(false);
               setShowEasyProgress(false);
+              setShowChartView(false);
             }}
             className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
           >
             {showDetailedRisks ? "Hide Detailed Risks" : "Show Detailed Risks"}
           </button>
+          <button 
+            onClick={() => {
+              setShowChartView(!showChartView);
+              setShowProgress(false);
+              setShowEasyProgress(false);
+              setShowDetailedRisks(false);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
+          >
+            {showChartView ? "Hide Chart View" : "Show Chart View"}
+          </button>
         </div>
       </div>
 
       {/* Current Risk Profile Grid */}
-      {!showProgress && !showEasyProgress && !showDetailedRisks && (
+      {!showProgress && !showEasyProgress && !showDetailedRisks && !showChartView && (
         <>
           <div className="flex flex-col items-center mb-6">
             <GridWithTooltip risk={risks.total} />
@@ -326,6 +341,32 @@ const RiskProfileSection: React.FC = () => {
           </div>
           <div className="text-center text-lg text-gray-600 mb-6">
             Detailed risk assessment for specific cardiovascular conditions
+          </div>
+          <RiskFactorsSection />
+        </>
+      )}
+
+      {/* Chart View for Detailed Risks */}
+      {showChartView && (
+        <>
+          <div className="mb-6 h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={[
+                { name: 'Heart Attack', risk: risks.heartAttack },
+                { name: 'Angina', risk: risks.angina },
+                { name: 'Ischemic Heart Disease', risk: risks.ischemicHeart },
+                { name: 'Atrial Fibrillation', risk: risks.atrialFibrillation }
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis domain={[0, 100]} />
+                <RechartsTooltip />
+                <Bar dataKey="risk" fill="#ef4444" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="text-center text-lg text-gray-600 mb-6">
+            Detailed risk assessment chart for specific cardiovascular conditions
           </div>
           <RiskFactorsSection />
         </>
