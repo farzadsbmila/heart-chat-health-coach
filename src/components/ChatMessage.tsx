@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Message } from "@/types";
 import { cn } from "@/lib/utils";
@@ -40,7 +39,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
       <div className={cn(
         "chat-bubble max-w-3xl", // Increased max width
         isAssistant 
-          ? "chat-bubble-assistant bg-heart rounded-tr-2xl rounded-br-2xl rounded-bl-2xl" 
+          ? "chat-bubble-assistant bg-green-100 text-gray-800 rounded-tr-2xl rounded-br-2xl rounded-bl-2xl" 
           : "chat-bubble-user rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl"
       )}>
         <div className="flex flex-col">
