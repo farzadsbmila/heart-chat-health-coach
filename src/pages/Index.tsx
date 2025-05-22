@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ChatProvider, useChatContext } from "@/context/ChatContext";
 import ChatContainer from "@/components/ChatContainer";
 import ChatInput from "@/components/ChatInput";
@@ -7,10 +7,15 @@ import useVoiceInput from "@/hooks/useVoiceInput";
 import { generateResponse } from "@/utils/healthResponses";
 import BottomNav from "@/components/BottomNav";
 import HomeButton from "@/components/HomeButton";
+import { Send, Mic } from "lucide-react";
+import ChatMessage from "@/components/ChatMessage";
+import { Message } from "@/types";
 
 const ChatPage: React.FC = () => {
   const { addMessage, currentView, messages } = useChatContext();
   const prevViewRef = useRef<string>(currentView);
+  const [input, setInput] = useState("");
+  const [messagesState, setMessagesState] = useState<Message[]>([]);
   
   const { voiceState, startRecording, stopRecording } = useVoiceInput({
     onTranscriptComplete: (transcript) => {
@@ -34,15 +39,50 @@ const ChatPage: React.FC = () => {
     }
   }, [currentView]);
 
+  const handleSendMessage = () => {
+    if (input.trim()) {
+      setMessagesState([...messagesState, { id: Date.now().toString(), content: input, role: "user", timestamp: new Date() }]);
+      setInput("");
+    }
+  };
+
+  const handleVoiceInput = () => {
+    // Implement voice input logic here
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 pb-16">
       <HomeButton />
       <ChatContainer />
-      <ChatInput />
-      <VoiceActivationButton 
-        onClick={voiceState.isRecording ? stopRecording : startRecording}
-        isRecording={voiceState.isRecording}
-      />
+      <div className="flex-1 overflow-y-auto p-4">
+        {messagesState.map((message, index) => (
+          <ChatMessage key={index} message={message} />
+        ))}
+      </div>
+      <div className="border-t border-gray-200 p-4">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+            placeholder="Type your message..."
+            className="flex-1 rounded-lg border border-gray-300 p-2 focus:border-blue-500 focus:outline-none"
+          />
+          <button
+            onClick={handleSendMessage}
+            className="rounded-lg bg-blue-500 p-2 text-white hover:bg-blue-600"
+          >
+            <Send className="h-5 w-5" />
+          </button>
+          <button
+            onClick={handleVoiceInput}
+            className="rounded-lg bg-blue-500 p-2 text-white hover:bg-blue-600"
+          >
+            <Mic className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
       <BottomNav />
     </div>
   );
