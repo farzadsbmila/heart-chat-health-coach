@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Stethoscope, Calendar, Clock, Plus, Send } from "lucide-react";
 import FixedSectionContainer from "@/components/FixedSectionContainer";
 import HomeButton from "@/components/HomeButton";
@@ -15,27 +15,32 @@ interface Appointment {
   location?: string;
 }
 
-type ChatStep = 'start' | 'asking_purpose' | 'asking_datetime' | 'confirming_datetime' | 'asking_location' | 'confirming_location' | 'completed';
-
-interface AppointmentData {
-  purpose: string;
-  date: string;
-  time: string;
-  location: string;
+interface LLMResponse {
+  status: "complete" | "asking" | "unsupported";
+  response: string;
+  time?: string;
+  date?: string;
+  location?: string;
 }
 
 const AppointmentsPage: React.FC = () => {
+  console.log('AppointmentsPage component rendering');
+  
   const [showNewAppointmentForm, setShowNewAppointmentForm] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState("");
-  const [chatStep, setChatStep] = useState<ChatStep>('start');
-  const [appointmentData, setAppointmentData] = useState<AppointmentData>({
-    purpose: '',
-    date: '',
-    time: '',
-    location: ''
-  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const chatMessagesRef = useRef<HTMLDivElement>(null);
+  
+  console.log('Component state:', { showChat, chatMessages: chatMessages.length, chatInput, isProcessing });
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
 
   // Create dynamic dates for appointments
   const getDatePlusDays = (days: number) => {
@@ -110,25 +115,113 @@ const AppointmentsPage: React.FC = () => {
     new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()
   );
 
-  const generateChatResponse = (userMessage: string, step: ChatStep): string => {
-    switch (step) {
-      case 'start':
-        return "I will add an appointment to your calendar! What type of appointment would you like to schedule? For example, you could say 'Cardiology appointment' or 'Check-up with Dr. Smith'.";
+  const callLLM = async (userMessage: string, conversationHistory: Message[]): Promise<LLMResponse> => {
+    console.log('callLLM function started with message:', userMessage);
+    
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    console.log('API key check:', apiKey ? 'API key found' : 'API key missing');
+    
+    if (!apiKey) {
+      console.error('No API key found in environment variables');
+      throw new Error('OpenAI API key not found. Please set VITE_OPENAI_API_KEY in your environment variables.');
+    }
+
+    const systemPrompt = `You are an appointment scheduling assistant for a healthcare app. Your job is to help users schedule medical appointments by gathering the necessary information: appointment type, date, time, and location.
+
+You have access to the full conversation history, so you can reference previous messages and build upon the information already gathered.
+
+You must respond with valid JSON in this exact format:
+{
+  "status": "complete"|"asking"|"unsupported",
+  "response": "<your message to the user>",
+  "time": "HH:MM"|null,
+  "date": "MM/DD/YYYY"|null,
+  "location": "<location>"|null
+}
+
+Rules:
+- Use "asking" status when you need more information from the user
+- Use "complete" status only when you have all required info: appointment type, date, time, and location
+- Use "unsupported" status for non-appointment related requests
+- For "complete" status, include time in 24-hour format (e.g., "14:30" for 2:30 PM)
+- For "complete" status, include date in MM/DD/YYYY format
+- Parse natural language dates like "tomorrow", "January 15", "next Monday"
+- Be conversational and helpful in your responses
+- Remember information from previous messages in the conversation
+- Ask for one piece of missing information at a time
+- If a user provides multiple pieces of information at once, acknowledge all of them`;
+
+    try {
+      console.log('Making fetch request to OpenAI API...');
+      console.log('Conversation history length:', conversationHistory.length);
       
-      case 'asking_datetime':
-        return "Great! Now, when would you like to schedule this appointment? Please tell me the date and time. For example, 'Tomorrow at 2:30 PM' or 'January 15th at 10:00 AM'.";
+      // Convert conversation history to OpenAI format
+      const conversationMessages = conversationHistory.map(msg => ({
+        role: msg.role === 'user' ? 'user' as const : 'assistant' as const,
+        content: msg.content
+      }));
       
-      case 'confirming_datetime':
-        return `Perfect! I have you scheduled for ${appointmentData.purpose} on ${appointmentData.date} at ${formatTime(appointmentData.time)}. Is this correct?`;
+      // Add the new user message
+      conversationMessages.push({ role: 'user', content: userMessage });
       
-      case 'asking_location':
-        return "Excellent! Now, where will this appointment take place? Please provide the location, such as 'Heart Center, Room 205' or 'Main Hospital, 3rd Floor'.";
+      const requestBody = {
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...conversationMessages
+        ],
+        temperature: 0.7,
+        max_tokens: 300,
+      };
+      console.log('Request body with full conversation:', requestBody);
       
-      case 'confirming_location':
-        return `Thank you! Your appointment details are:\n\n• ${appointmentData.purpose}\n• ${formatAppointmentDate(appointmentData.date)} at ${formatTime(appointmentData.time)}\n• Location: ${appointmentData.location}\n\nShould I add this appointment to your schedule?`;
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('Fetch response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('OpenAI API error response:', errorText);
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('OpenAI API response data:', data);
       
-      default:
-        return "I'm here to help you schedule appointments. How can I assist you today?";
+      const assistantMessage = data.choices[0]?.message?.content;
+      console.log('Assistant message:', assistantMessage);
+
+      if (!assistantMessage) {
+        throw new Error('No response from OpenAI');
+      }
+
+      // Parse the JSON response
+      try {
+        console.log('Attempting to parse JSON response...');
+        const llmResponse: LLMResponse = JSON.parse(assistantMessage);
+        console.log('Parsed LLM response:', llmResponse);
+        return llmResponse;
+      } catch (parseError) {
+        console.warn('JSON parsing failed, using fallback response. Parse error:', parseError);
+        console.warn('Raw assistant message:', assistantMessage);
+        // If JSON parsing fails, return a fallback response
+        return {
+          status: "asking",
+          response: assistantMessage
+        };
+      }
+    } catch (error) {
+      console.error('OpenAI API call failed - detailed error:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error constructor:', error.constructor.name);
+      throw error;
     }
   };
 
@@ -204,9 +297,18 @@ const AppointmentsPage: React.FC = () => {
     return date && time ? { date, time } : null;
   };
 
-  const handleChatSubmit = () => {
-    if (!chatInput.trim()) return;
+  const handleChatSubmit = async () => {
+    console.log('=== handleChatSubmit called ===');
+    console.log('chatInput:', chatInput);
+    console.log('isProcessing:', isProcessing);
+    
+    if (!chatInput.trim() || isProcessing) {
+      console.log('Early return - empty input or processing');
+      return;
+    }
 
+    setIsProcessing(true);
+    
     // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -216,106 +318,92 @@ const AppointmentsPage: React.FC = () => {
     };
 
     setChatMessages(prev => [...prev, userMessage]);
+    setChatInput('');
 
-    let nextStep: ChatStep = chatStep;
-    let botResponse = '';
-
-    switch (chatStep) {
-      case 'start':
-        setAppointmentData(prev => ({ ...prev, purpose: chatInput }));
-        nextStep = 'asking_datetime';
-        botResponse = generateChatResponse('', 'asking_datetime');
-        break;
-
-      case 'asking_datetime':
-        const parsedDateTime = parseDateTime(chatInput);
-        if (parsedDateTime) {
-          setAppointmentData(prev => ({ 
-            ...prev, 
-            date: parsedDateTime.date, 
-            time: parsedDateTime.time 
-          }));
-          nextStep = 'confirming_datetime';
-          botResponse = generateChatResponse('', 'confirming_datetime');
-        } else {
-          botResponse = "I couldn't understand the date and time. Could you please try again? For example, 'Tomorrow at 2:30 PM' or 'January 15th at 10:00 AM'.";
-        }
-        break;
-
-      case 'confirming_datetime':
-        if (chatInput.toLowerCase().includes('yes') || chatInput.toLowerCase().includes('correct') || chatInput.toLowerCase().includes('right')) {
-          nextStep = 'asking_location';
-          botResponse = generateChatResponse('', 'asking_location');
-        } else {
-          nextStep = 'asking_datetime';
-          botResponse = "Let's try again. When would you like to schedule this appointment?";
-        }
-        break;
-
-      case 'asking_location':
-        setAppointmentData(prev => ({ ...prev, location: chatInput }));
-        nextStep = 'confirming_location';
-        botResponse = generateChatResponse('', 'confirming_location');
-        break;
-
-      case 'confirming_location':
-        if (chatInput.toLowerCase().includes('yes') || chatInput.toLowerCase().includes('add') || chatInput.toLowerCase().includes('schedule')) {
-          // Add appointment to list
-          const newAppointment: Appointment = {
-            id: Date.now().toString(),
-            doctor: appointmentData.purpose.includes('Dr.') ? appointmentData.purpose : 'TBD',
-            specialty: appointmentData.purpose,
-            date: appointmentData.date,
-            time: appointmentData.time,
-            location: appointmentData.location
-          };
-
-          setAppointments(prev => [...prev, newAppointment]);
-          botResponse = "Perfect! Your appointment has been added to your schedule. The chat will now close automatically.";
-          
-          // Clear chat after a delay
-          setTimeout(() => {
-            setShowChat(false);
-            setChatMessages([]);
-            setChatStep('start');
-            setAppointmentData({ purpose: '', date: '', time: '', location: '' });
-          }, 2000);
-        } else {
-          nextStep = 'asking_location';
-          botResponse = "Let's update the location. Where will this appointment take place?";
-        }
-        break;
-    }
-
-    setChatStep(nextStep);
-
-    // Add bot response
-    setTimeout(() => {
+    try {
+      console.log('Sending message to LLM:', chatInput);
+      
+      // Call LLM with full conversation history
+      const llmResponse = await callLLM(chatInput, chatMessages);
+      console.log('LLM Response received:', llmResponse);
+      
+      // Add LLM response to chat
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: botResponse,
+        content: llmResponse.response,
         role: 'assistant',
         timestamp: new Date()
       };
       setChatMessages(prev => [...prev, botMessage]);
-    }, 500);
 
-    setChatInput('');
+      // Handle different status responses
+      if (llmResponse.status === 'complete') {
+        console.log('Creating appointment with data:', { date: llmResponse.date, time: llmResponse.time, location: llmResponse.location });
+        // Create new appointment from LLM response
+        if (llmResponse.date && llmResponse.time) {
+          const newAppointment: Appointment = {
+            id: Date.now().toString(),
+            doctor: 'TBD', // LLM can specify doctor in location or we can parse from response
+            specialty: 'Appointment', // Could be extracted from response
+            date: llmResponse.date.split('/').reverse().join('-'), // Convert MM/DD/YYYY to YYYY-MM-DD
+            time: llmResponse.time,
+            location: llmResponse.location || 'TBD'
+          };
+
+          setAppointments(prev => [...prev, newAppointment]);
+          
+          // Close chat after successful appointment creation
+          setTimeout(() => {
+            setShowChat(false);
+            setChatMessages([]);
+          }, 2000);
+        }
+      }
+      // For 'asking' and 'unsupported' status, we just display the response (already done above)
+      
+    } catch (error) {
+      console.error('Error calling LLM - Full error object:', error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
+      let errorMessage = 'Sorry, I encountered an error. Please try again.';
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('API key not found')) {
+          errorMessage = 'OpenAI API key is not configured. Please set up your API key.';
+        } else if (error.message.includes('API error')) {
+          errorMessage = 'There was an issue connecting to the AI service. Please try again.';
+        } else if (error.message.includes('No response')) {
+          errorMessage = 'The AI service did not provide a response. Please try again.';
+        }
+      }
+      
+      const errorMsg: Message = {
+        id: (Date.now() + 2).toString(),
+        content: errorMessage,
+        role: 'assistant',
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const startAppointmentChat = () => {
+    console.log('startAppointmentChat function called');
     setShowChat(true);
-    setChatStep('start');
-    setAppointmentData({ purpose: '', date: '', time: '', location: '' });
     
     const welcomeMessage: Message = {
       id: Date.now().toString(),
-      content: generateChatResponse('', 'start'),
+      content: "I'll help you schedule an appointment. What type of appointment would you like to schedule?",
       role: 'assistant',
       timestamp: new Date()
     };
     
     setChatMessages([welcomeMessage]);
+    console.log('Chat started, welcome message added');
   };
 
   return (
@@ -452,7 +540,6 @@ const AppointmentsPage: React.FC = () => {
                 onClick={() => {
                   setShowChat(false);
                   setChatMessages([]);
-                  setChatStep('start');
                 }}
                 className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
               >
@@ -460,7 +547,10 @@ const AppointmentsPage: React.FC = () => {
               </button>
             </div>
             
-            <div className="h-64 overflow-y-auto p-4">
+            <div 
+              ref={chatMessagesRef}
+              className="h-64 overflow-y-auto p-4 scroll-smooth"
+            >
               {chatMessages.map((message, index) => (
                 <ChatMessage key={index} message={message} />
               ))}
@@ -471,14 +561,28 @@ const AppointmentsPage: React.FC = () => {
                 <input
                   type="text"
                   value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleChatSubmit()}
-                  placeholder="Type your message..."
-                  className="flex-1 rounded-lg border border-gray-300 p-2 focus:border-blue-500 focus:outline-none"
+                  onChange={(e) => {
+                    console.log('Input change:', e.target.value);
+                    setChatInput(e.target.value);
+                  }}
+                  onKeyPress={(e) => {
+                    console.log('Key pressed:', e.key, 'isProcessing:', isProcessing);
+                    if (e.key === "Enter" && !isProcessing) {
+                      console.log('Enter pressed, calling handleChatSubmit');
+                      handleChatSubmit();
+                    }
+                  }}
+                  placeholder={isProcessing ? "Processing..." : "Type your message..."}
+                  disabled={isProcessing}
+                  className="flex-1 rounded-lg border border-gray-300 p-2 focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
                 <button
-                  onClick={handleChatSubmit}
-                  className="rounded-lg bg-blue-500 p-2 text-white hover:bg-blue-600"
+                  onClick={() => {
+                    console.log('Send button clicked');
+                    handleChatSubmit();
+                  }}
+                  disabled={isProcessing}
+                  className="rounded-lg bg-blue-500 p-2 text-white hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   <Send className="h-5 w-5" />
                 </button>
