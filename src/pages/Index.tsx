@@ -1,12 +1,11 @@
-
 import React, { useEffect, useRef } from "react";
 import { ChatProvider, useChatContext } from "@/context/ChatContext";
 import ChatContainer from "@/components/ChatContainer";
 import ChatInput from "@/components/ChatInput";
-import ChatHeader from "@/components/ChatHeader";
 import VoiceActivationButton from "@/components/VoiceActivationButton";
 import useVoiceInput from "@/hooks/useVoiceInput";
 import { generateResponse } from "@/utils/healthResponses";
+import BottomNav from "@/components/BottomNav";
 
 const ChatPage: React.FC = () => {
   const { addMessage, currentView, messages } = useChatContext();
@@ -36,13 +35,13 @@ const ChatPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <ChatHeader />
       <ChatContainer />
       <ChatInput />
       <VoiceActivationButton 
         onClick={voiceState.isRecording ? stopRecording : startRecording}
         isRecording={voiceState.isRecording}
       />
+      <BottomNav />
     </div>
   );
 };

@@ -13,6 +13,7 @@ import FixedSectionContainer from "./FixedSectionContainer";
 import { Smile, Frown, TrendingUp, Heart } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
+import BottomNav from "@/components/BottomNav";
 
 const riskData = [
   { month: 'March', risk: 75 },
@@ -236,177 +237,180 @@ const RiskProfileSection: React.FC = () => {
   };
 
   return (
-    <FixedSectionContainer>
-      <div className="space-y-4 mb-4">
-        <h2 className="text-2xl font-bold text-heart-dark">Your Cardiovascular Risk Profile</h2>
-        <div className="flex gap-2">
-          <button 
-            onClick={() => {
-              setShowProgress(!showProgress);
-              setShowEasyProgress(false);
-              setShowDetailedRisks(false);
-              setShowChartView(false);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
-          >
-            <TrendingUp className="h-4 w-4" />
-            {showProgress ? "Hide Progress" : "Show Progress"}
-          </button>
-          <button 
-            onClick={() => {
-              setShowEasyProgress(!showEasyProgress);
-              setShowProgress(false);
-              setShowDetailedRisks(false);
-              setShowChartView(false);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
-          >
-            {showEasyProgress ? "Hide Easy Progress" : "Show Easy Progress"}
-          </button>
-          <button 
-            onClick={() => {
-              setShowDetailedRisks(!showDetailedRisks);
-              setShowProgress(false);
-              setShowEasyProgress(false);
-              setShowChartView(false);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
-          >
-            {showDetailedRisks ? "Hide Detailed Risks" : "Show Detailed Risks"}
-          </button>
-          <button 
-            onClick={() => {
-              setShowChartView(!showChartView);
-              setShowProgress(false);
-              setShowEasyProgress(false);
-              setShowDetailedRisks(false);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
-          >
-            {showChartView ? "Hide Chart View" : "Show Chart View"}
-          </button>
-        </div>
-      </div>
-
-      {/* Current Risk Profile Grid */}
-      {!showProgress && !showEasyProgress && !showDetailedRisks && !showChartView && (
-        <>
-          <div className="flex flex-col items-center mb-6">
-            <GridWithTooltip risk={risks.total} />
-            <div className="text-lg font-medium text-gray-700 mt-2">
-              Risk: {risks.total}%
-            </div>
-          </div>
-          <RiskFactorsSection />
-        </>
-      )}
-
-      {/* Original Progress Chart */}
-      {showProgress && (
-        <div className="mb-6 h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={riskData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis domain={[0, 100]} />
-              <RechartsTooltip />
-              <Bar dataKey="risk" fill="#9B87F5" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* Easy Progress - Three 6x6 Smiley Grids */}
-      {showEasyProgress && (
-        <div>
-          <div className="flex justify-center gap-16">
-            {monthlyRisks.map((monthData) => (
-              <div key={monthData.month} className="flex flex-col items-center">
-                <GridWithTooltip risk={monthData.risk} />
-                <div className="text-lg font-medium text-gray-700">{monthData.month}</div>
-              </div>
-            ))}
-          </div>
-          <div className="text-center text-lg text-gray-600">
-            Your risk profile over the last three months
+    <div className="min-h-screen flex flex-col">
+      <FixedSectionContainer>
+        <div className="space-y-4 mb-4">
+          <h2 className="text-2xl font-bold text-heart-dark">Your Cardiovascular Risk Profile</h2>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => {
+                setShowProgress(!showProgress);
+                setShowEasyProgress(false);
+                setShowDetailedRisks(false);
+                setShowChartView(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
+            >
+              <TrendingUp className="h-4 w-4" />
+              {showProgress ? "Hide Progress" : "Show Progress"}
+            </button>
+            <button 
+              onClick={() => {
+                setShowEasyProgress(!showEasyProgress);
+                setShowProgress(false);
+                setShowDetailedRisks(false);
+                setShowChartView(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
+            >
+              {showEasyProgress ? "Hide Easy Progress" : "Show Easy Progress"}
+            </button>
+            <button 
+              onClick={() => {
+                setShowDetailedRisks(!showDetailedRisks);
+                setShowProgress(false);
+                setShowEasyProgress(false);
+                setShowChartView(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
+            >
+              {showDetailedRisks ? "Hide Detailed Risks" : "Show Detailed Risks"}
+            </button>
+            <button 
+              onClick={() => {
+                setShowChartView(!showChartView);
+                setShowProgress(false);
+                setShowEasyProgress(false);
+                setShowDetailedRisks(false);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-heart text-white rounded-lg hover:bg-heart-dark transition-colors"
+            >
+              {showChartView ? "Hide Chart View" : "Show Chart View"}
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Detailed Cardiovascular Risks */}
-      {showDetailedRisks && (
-        <>
-          <div className="grid grid-cols-2 gap-8 mb-4">
-            <div className="flex flex-col items-center">
-              <h3 className="text-xl font-semibold text-heart-dark mb-4">
-                Heart Attack
-              </h3>
-              <GridWithTooltip risk={risks.heartAttack} />
+        {/* Current Risk Profile Grid */}
+        {!showProgress && !showEasyProgress && !showDetailedRisks && !showChartView && (
+          <>
+            <div className="flex flex-col items-center mb-6">
+              <GridWithTooltip risk={risks.total} />
               <div className="text-lg font-medium text-gray-700 mt-2">
-                Risk: {risks.heartAttack}%
+                Risk: {risks.total}%
               </div>
             </div>
-            <div className="flex flex-col items-center">
-              <h3 className="text-xl font-semibold text-heart-dark mb-4">
-                Angina
-              </h3>
-              <GridWithTooltip risk={risks.angina} />
-              <div className="text-lg font-medium text-gray-700 mt-2">
-                Risk: {risks.angina}%
-              </div>
-            </div>
-            <div className="flex flex-col items-center">
-              <h3 className="text-xl font-semibold text-heart-dark mb-4">
-                Ischemic Heart Disease
-              </h3>
-              <GridWithTooltip risk={risks.ischemicHeart} />
-              <div className="text-lg font-medium text-gray-700 mt-2">
-                Risk: {risks.ischemicHeart}%
-              </div>
-            </div>
-            <div className="flex flex-col items-center">
-              <h3 className="text-xl font-semibold text-heart-dark mb-4">
-                Atrial Fibrillation
-              </h3>
-              <GridWithTooltip risk={risks.atrialFibrillation} />
-              <div className="text-lg font-medium text-gray-700 mt-2">
-                Risk: {risks.atrialFibrillation}%
-              </div>
-            </div>
-          </div>
-          <div className="text-center text-lg text-gray-600 mb-6">
-            Detailed risk assessment for specific cardiovascular conditions
-          </div>
-          <RiskFactorsSection />
-        </>
-      )}
+            <RiskFactorsSection />
+          </>
+        )}
 
-      {/* Chart View for Detailed Risks */}
-      {showChartView && (
-        <>
+        {/* Original Progress Chart */}
+        {showProgress && (
           <div className="mb-6 h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[
-                { name: 'Heart Attack', risk: risks.heartAttack },
-                { name: 'Angina', risk: risks.angina },
-                { name: 'Ischemic Heart Disease', risk: risks.ischemicHeart },
-                { name: 'Atrial Fibrillation', risk: risks.atrialFibrillation }
-              ]}>
+              <BarChart data={riskData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis dataKey="month" />
                 <YAxis domain={[0, 100]} />
                 <RechartsTooltip />
-                <Bar dataKey="risk" fill="#ef4444" />
+                <Bar dataKey="risk" fill="#9B87F5" />
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="text-center text-lg text-gray-600 mb-6">
-            Detailed risk assessment chart for specific cardiovascular conditions
+        )}
+
+        {/* Easy Progress - Three 6x6 Smiley Grids */}
+        {showEasyProgress && (
+          <div>
+            <div className="flex justify-center gap-16">
+              {monthlyRisks.map((monthData) => (
+                <div key={monthData.month} className="flex flex-col items-center">
+                  <GridWithTooltip risk={monthData.risk} />
+                  <div className="text-lg font-medium text-gray-700">{monthData.month}</div>
+                </div>
+              ))}
+            </div>
+            <div className="text-center text-lg text-gray-600">
+              Your risk profile over the last three months
+            </div>
           </div>
-          <RiskFactorsSection />
-        </>
-      )}
-    </FixedSectionContainer>
+        )}
+
+        {/* Detailed Cardiovascular Risks */}
+        {showDetailedRisks && (
+          <>
+            <div className="grid grid-cols-2 gap-8 mb-4">
+              <div className="flex flex-col items-center">
+                <h3 className="text-xl font-semibold text-heart-dark mb-4">
+                  Heart Attack
+                </h3>
+                <GridWithTooltip risk={risks.heartAttack} />
+                <div className="text-lg font-medium text-gray-700 mt-2">
+                  Risk: {risks.heartAttack}%
+                </div>
+              </div>
+              <div className="flex flex-col items-center">
+                <h3 className="text-xl font-semibold text-heart-dark mb-4">
+                  Angina
+                </h3>
+                <GridWithTooltip risk={risks.angina} />
+                <div className="text-lg font-medium text-gray-700 mt-2">
+                  Risk: {risks.angina}%
+                </div>
+              </div>
+              <div className="flex flex-col items-center">
+                <h3 className="text-xl font-semibold text-heart-dark mb-4">
+                  Ischemic Heart Disease
+                </h3>
+                <GridWithTooltip risk={risks.ischemicHeart} />
+                <div className="text-lg font-medium text-gray-700 mt-2">
+                  Risk: {risks.ischemicHeart}%
+                </div>
+              </div>
+              <div className="flex flex-col items-center">
+                <h3 className="text-xl font-semibold text-heart-dark mb-4">
+                  Atrial Fibrillation
+                </h3>
+                <GridWithTooltip risk={risks.atrialFibrillation} />
+                <div className="text-lg font-medium text-gray-700 mt-2">
+                  Risk: {risks.atrialFibrillation}%
+                </div>
+              </div>
+            </div>
+            <div className="text-center text-lg text-gray-600 mb-6">
+              Detailed risk assessment for specific cardiovascular conditions
+            </div>
+            <RiskFactorsSection />
+          </>
+        )}
+
+        {/* Chart View for Detailed Risks */}
+        {showChartView && (
+          <>
+            <div className="mb-6 h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                  { name: 'Heart Attack', risk: risks.heartAttack },
+                  { name: 'Angina', risk: risks.angina },
+                  { name: 'Ischemic Heart Disease', risk: risks.ischemicHeart },
+                  { name: 'Atrial Fibrillation', risk: risks.atrialFibrillation }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis domain={[0, 100]} />
+                  <RechartsTooltip />
+                  <Bar dataKey="risk" fill="#ef4444" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="text-center text-lg text-gray-600 mb-6">
+              Detailed risk assessment chart for specific cardiovascular conditions
+            </div>
+            <RiskFactorsSection />
+          </>
+        )}
+      </FixedSectionContainer>
+      <BottomNav />
+    </div>
   );
 };
 
