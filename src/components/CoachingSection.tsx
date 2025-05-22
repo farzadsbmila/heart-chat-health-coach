@@ -2,6 +2,7 @@ import React from "react";
 import FixedSectionContainer from "./FixedSectionContainer";
 import { Smile, Frown } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
+import HomeButton from "@/components/HomeButton";
 
 const activityData = [
   { day: "Mon", completed: true },
@@ -16,6 +17,7 @@ const activityData = [
 const CoachingSection: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col">
+      <HomeButton />
       <FixedSectionContainer>
         <h2 className="text-2xl font-bold text-heart-dark mb-4">Your Activity Progress</h2>
         

@@ -2,10 +2,12 @@ import React from "react";
 import FixedSectionContainer from "./FixedSectionContainer";
 import { Card, CardContent } from "@/components/ui/card";
 import BottomNav from "@/components/BottomNav";
+import HomeButton from "@/components/HomeButton";
 
 const RecommendationsSection: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col">
+      <HomeButton />
       <FixedSectionContainer>
         <h2 className="text-2xl font-bold text-heart-dark mb-4">Your Health Recommendations</h2>
         

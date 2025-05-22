@@ -14,6 +14,7 @@ import { Smile, Frown, TrendingUp, Heart } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tooltip as ReactTooltip } from 'react-tooltip';
 import BottomNav from "@/components/BottomNav";
+import HomeButton from "@/components/HomeButton";
 
 const riskData = [
   { month: 'March', risk: 75 },
@@ -238,6 +239,7 @@ const RiskProfileSection: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <HomeButton />
       <FixedSectionContainer>
         <div className="space-y-4 mb-4">
           <h2 className="text-2xl font-bold text-heart-dark">Your Cardiovascular Risk Profile</h2>

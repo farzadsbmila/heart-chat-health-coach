@@ -6,6 +6,7 @@ import VoiceActivationButton from "@/components/VoiceActivationButton";
 import useVoiceInput from "@/hooks/useVoiceInput";
 import { generateResponse } from "@/utils/healthResponses";
 import BottomNav from "@/components/BottomNav";
+import HomeButton from "@/components/HomeButton";
 
 const ChatPage: React.FC = () => {
   const { addMessage, currentView, messages } = useChatContext();
@@ -35,6 +36,7 @@ const ChatPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 pb-16">
+      <HomeButton />
       <ChatContainer />
       <ChatInput />
       <VoiceActivationButton 
