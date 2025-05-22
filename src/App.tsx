@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import RiskProfileSection from "@/components/RiskProfileSection";
 import RecommendationsSection from "@/components/RecommendationsSection";
 import CoachingSection from "@/components/CoachingSection";
+import AlertsPage from "@/pages/Alerts";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/risk-profile" element={<RiskProfileSection />} />
           <Route path="/recommendations" element={<RecommendationsSection />} />
           <Route path="/coaching" element={<CoachingSection />} />
+          <Route path="/alerts" element={<AlertsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

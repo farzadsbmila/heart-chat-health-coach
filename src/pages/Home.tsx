@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { MessageCircle, BarChart, ListChecks, Activity, Home as HomeIcon } from "lucide-react";
+import { MessageCircle, BarChart, ListChecks, Activity, Home as HomeIcon, Info } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 
 const sections = [
@@ -39,17 +39,26 @@ const HomePage: React.FC = () => {
       </div>
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12">
         <h1 className="text-4xl font-bold mb-10 text-heart-dark">Cardio Twin</h1>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 w-full max-w-2xl px-4">
-          {sections.map((section) => (
-            <Link
-              key={section.name}
-              to={section.path}
-              className={`flex flex-col items-center justify-center rounded-2xl border-4 shadow-lg transition-all duration-200 text-center p-8 text-2xl font-semibold ${section.color}`}
-            >
-              {section.icon}
-              {section.name}
-            </Link>
-          ))}
+        <div className="w-full max-w-2xl px-4">
+          <Link
+            to="/alerts"
+            className="flex items-center justify-center rounded-2xl border-4 shadow-lg transition-all duration-200 text-center p-4 text-2xl font-semibold bg-orange-500 text-white mb-8"
+          >
+            <Info className="h-6 w-6 mr-2" />
+            Today's Alerts
+          </Link>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            {sections.map((section) => (
+              <Link
+                key={section.name}
+                to={section.path}
+                className={`flex flex-col items-center justify-center rounded-2xl border-4 shadow-lg transition-all duration-200 text-center p-8 text-2xl font-semibold ${section.color}`}
+              >
+                {section.icon}
+                {section.name}
+              </Link>
+            ))}
+          </div>
         </div>
         <BottomNav />
       </div>
