@@ -11,6 +11,7 @@ import RecommendationsSection from "@/components/RecommendationsSection";
 import CoachingSection from "@/components/CoachingSection";
 import AlertsPage from "@/pages/Alerts";
 import CalendarPage from "@/pages/Calendar";
+import AppointmentsPage from "@/pages/Appointments";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/coaching" element={<CoachingSection />} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/appointments" element={<AppointmentsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { MessageCircle, BarChart, ListChecks, Activity, Home as HomeIcon, Info, Calendar } from "lucide-react";
+import { MessageCircle, BarChart, ListChecks, Activity, Home as HomeIcon, Info, Calendar, Stethoscope } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 
 const sections = [
@@ -21,6 +21,12 @@ const sections = [
     path: "/recommendations",
     icon: <ListChecks className="h-12 w-12 mb-4 text-heart-dark" />,
     color: "bg-green-100 hover:bg-green-200 border-green-300"
+  },
+  {
+    name: "Appointments",
+    path: "/appointments",
+    icon: <Stethoscope className="h-12 w-12 mb-4 text-heart-dark" />,
+    color: "bg-teal-100 hover:bg-teal-200 border-teal-300"
   },
   {
     name: "Calendar",
