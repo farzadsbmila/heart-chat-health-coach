@@ -93,7 +93,7 @@ export const generateResponse = (query: string, view: ChatView): string => {
       } else if (query.toLowerCase().includes("coach") || query.toLowerCase().includes("support") || query.toLowerCase().includes("help me")) {
         return "As your heart health coach, I'm here to help you implement positive changes. What specific area would you like coaching with today?";
       } else {
-        return "I'm your cardiovascular health assistant. I can help with:\n\n• Assessing your risk profile\n• Providing health recommendations\n• Coaching you through lifestyle changes\n\nWhat would you like to focus on today?";
+        return "I'm your cardiovascular health assistant. I can help with:\n\n• Assessing your risk profile\n• Providing health recommendations\n• Coaching you through lifestyle changes";
       }
   }
 };
