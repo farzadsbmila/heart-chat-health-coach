@@ -34,7 +34,7 @@ const ChatPage: React.FC = () => {
   }, [currentView]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 pb-16">
       <ChatContainer />
       <ChatInput />
       <VoiceActivationButton 
