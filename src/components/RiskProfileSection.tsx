@@ -37,11 +37,11 @@ const smokingOptions: RiskOption[] = [
 ];
 
 const activityOptions: RiskOption[] = [
-  { label: "None", value: 10 },
-  { label: "0-10 minutes", value: 8 },
-  { label: "10-30 minutes", value: 6 },
+  { label: "> 60 minutes", value: 0 },
   { label: "30-60 minutes", value: 3 },
-  { label: "> 60 minutes", value: 0 }
+  { label: "10-30 minutes", value: 6 },
+  { label: "0-10 minutes", value: 8 },
+  { label: "None", value: 10 }
 ];
 
 // Add new interface and data for cardiovascular diseases
@@ -58,6 +58,26 @@ const cardiovascularRisks: CardiovascularRisk[] = [
   { disease: "Atrial Fibrillation", risk: 10 }
 ];
 
+// Risk factor multipliers for each disease (1, 2, or 3)
+const RISK_MULTIPLIERS = {
+  heartAttack: {
+    smoking: 3,
+    activity: 2
+  },
+  angina: {
+    smoking: 2,
+    activity: 1
+  },
+  ischemicHeart: {
+    smoking: 1,
+    activity: 3
+  },
+  atrialFibrillation: {
+    smoking: 2,
+    activity: 2
+  }
+};
+
 const RiskProfileSection: React.FC = () => {
   const [showProgress, setShowProgress] = useState(false);
   const [showEasyProgress, setShowEasyProgress] = useState(false);
@@ -66,15 +86,30 @@ const RiskProfileSection: React.FC = () => {
   const [selectedSmoking, setSelectedSmoking] = useState(smokingOptions[0]); // 0-1 cigarettes default
   const [selectedActivity, setSelectedActivity] = useState(activityOptions[2]); // 10-30 minutes default
   
-  // Update risk calculation to return individual risks
+  // Update risk calculation to use multipliers
   const calculateRisks = () => {
-    const baseAdjustment = selectedSmoking.value + selectedActivity.value;
+    const baseRisk = {
+      total: 10,
+      heartAttack: 15,
+      angina: 10,
+      ischemicHeart: 25,
+      atrialFibrillation: 10
+    };
+
     return {
-      total: Math.min(100, 10 + baseAdjustment),
-      heartAttack: Math.min(100, 15 + baseAdjustment),
-      angina: Math.min(100, 10 + baseAdjustment),
-      ischemicHeart: Math.min(100, 25 + baseAdjustment),
-      atrialFibrillation: Math.min(100, 10 + baseAdjustment)
+      total: Math.min(100, baseRisk.total + selectedSmoking.value + selectedActivity.value),
+      heartAttack: Math.min(100, baseRisk.heartAttack + 
+        (selectedSmoking.value * RISK_MULTIPLIERS.heartAttack.smoking) + 
+        (selectedActivity.value * RISK_MULTIPLIERS.heartAttack.activity)),
+      angina: Math.min(100, baseRisk.angina + 
+        (selectedSmoking.value * RISK_MULTIPLIERS.angina.smoking) + 
+        (selectedActivity.value * RISK_MULTIPLIERS.angina.activity)),
+      ischemicHeart: Math.min(100, baseRisk.ischemicHeart + 
+        (selectedSmoking.value * RISK_MULTIPLIERS.ischemicHeart.smoking) + 
+        (selectedActivity.value * RISK_MULTIPLIERS.ischemicHeart.activity)),
+      atrialFibrillation: Math.min(100, baseRisk.atrialFibrillation + 
+        (selectedSmoking.value * RISK_MULTIPLIERS.atrialFibrillation.smoking) + 
+        (selectedActivity.value * RISK_MULTIPLIERS.atrialFibrillation.activity))
     };
   };
 
@@ -129,7 +164,7 @@ const RiskProfileSection: React.FC = () => {
   const RiskFactorsSection = () => {
     // Helper function to get heart color based on index and total options
     const getHeartColor = (index: number, total: number, reverse: boolean = false) => {
-      const opacity = reverse ? index / (total - 1) : 1 - (index / (total - 1));
+      const opacity = reverse ? 1 - (index / (total - 1)) : 1 - (index / (total - 1));
       return `rgba(239, 68, 68, ${opacity})`; // Using red-500 color with opacity
     };
 
@@ -188,7 +223,7 @@ const RiskProfileSection: React.FC = () => {
                     selectedActivity.label === option.label ? 'fill-current' : ''
                   }`}
                   style={{ 
-                    color: getHeartColor(index, activityOptions.length, true) 
+                    color: getHeartColor(index, activityOptions.length) 
                   }}
                 />
                 {option.label}
