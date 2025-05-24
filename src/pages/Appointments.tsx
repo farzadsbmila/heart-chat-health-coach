@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Stethoscope, Calendar, Clock, Plus, Send } from "lucide-react";
+import { Stethoscope, Calendar, Plus, Send, Mic } from "lucide-react";
 import FixedSectionContainer from "@/components/FixedSectionContainer";
 import HomeButton from "@/components/HomeButton";
 import BottomNav from "@/components/BottomNav";
@@ -210,78 +210,6 @@ Rules:
     }
   };
 
-  const parseDateTime = (input: string): { date: string; time: string } | null => {
-    const now = new Date();
-    let date = '';
-    let time = '';
-
-    // Handle "tomorrow"
-    if (input.toLowerCase().includes('tomorrow')) {
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      date = tomorrow.toISOString().split('T')[0];
-    }
-
-    // Handle "today"
-    if (input.toLowerCase().includes('today')) {
-      date = now.toISOString().split('T')[0];
-    }
-
-    // Handle specific dates (simple parsing)
-    const dateMatch = input.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-    if (dateMatch) {
-      const [, month, day, year] = dateMatch;
-      date = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-
-    // Handle month names with day (e.g., "January 15", "Jan 15")
-    const monthNames = [
-      'january', 'february', 'march', 'april', 'may', 'june',
-      'july', 'august', 'september', 'october', 'november', 'december'
-    ];
-    const monthAbbrevs = [
-      'jan', 'feb', 'mar', 'apr', 'may', 'jun',
-      'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
-    ];
-
-    const monthDayMatch = input.match(/(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})(?:\s+(\d{4}))?/i);
-    if (monthDayMatch) {
-      const [, monthName, day, year] = monthDayMatch;
-      const monthLower = monthName.toLowerCase();
-      
-      let monthIndex = monthNames.indexOf(monthLower);
-      if (monthIndex === -1) {
-        monthIndex = monthAbbrevs.indexOf(monthLower);
-      }
-      
-      if (monthIndex !== -1) {
-        const targetYear = year ? parseInt(year) : now.getFullYear();
-        const targetMonth = monthIndex + 1; // JavaScript months are 0-indexed
-        date = `${targetYear}-${targetMonth.toString().padStart(2, '0')}-${day.padStart(2, '0')}`;
-      }
-    }
-
-    // Handle time - more flexible patterns
-    // Matches: "2pm", "2:30pm", "2 pm", "2:30 pm", "14:30", etc.
-    const timeMatch = input.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|AM|PM)?/);
-    if (timeMatch) {
-      let [, hours, minutes = '00', period] = timeMatch;
-      let hour24 = parseInt(hours);
-      
-      if (period) {
-        if (period.toLowerCase() === 'pm' && hour24 !== 12) {
-          hour24 += 12;
-        } else if (period.toLowerCase() === 'am' && hour24 === 12) {
-          hour24 = 0;
-        }
-      }
-      
-      time = `${hour24.toString().padStart(2, '0')}:${minutes}`;
-    }
-
-    return date && time ? { date, time } : null;
-  };
-
   const handleChatSubmit = async () => {
     if (!chatInput.trim() || isProcessing) {
       return;
@@ -372,11 +300,10 @@ Rules:
     
     const welcomeMessage: Message = {
       id: Date.now().toString(),
-      content: `I'll help you schedule an appointment. Please provide this information. Skip any that you don't know:
-      - doctor name
+      content: `I'll help you schedule an appointment. Please provide this information. Skip any information that you don't know:
+      - doctor's name
       - location
-      - time
-      - date`,
+      - date and time`,
       role: 'assistant',
       timestamp: new Date()
     };
@@ -480,12 +407,6 @@ Rules:
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-1 text-sm text-gray-500">
-                      <Clock className="h-4 w-4" />
-                      <span>{formatTime(appointment.time)}</span>
-                    </div>
-                  </div>
                 </div>
               ))}
             </div>
@@ -551,6 +472,16 @@ Rules:
                   disabled={isProcessing}
                   className="flex-1 rounded-lg border border-gray-300 p-2 focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
+                <button
+                  onClick={() => {
+                    // Voice feature to be implemented later
+                  }}
+                  disabled={isProcessing}
+                  className="rounded-lg bg-gray-500 p-2 text-white hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  title="Voice input (coming soon)"
+                >
+                  <Mic className="h-5 w-5" />
+                </button>
                 <button
                   onClick={() => {
                     handleChatSubmit();
