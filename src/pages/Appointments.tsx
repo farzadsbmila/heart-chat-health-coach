@@ -24,8 +24,6 @@ interface LLMResponse {
 }
 
 const AppointmentsPage: React.FC = () => {
-  console.log('AppointmentsPage component rendering');
-  
   const [showNewAppointmentForm, setShowNewAppointmentForm] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
@@ -33,8 +31,6 @@ const AppointmentsPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const chatMessagesRef = useRef<HTMLDivElement>(null);
   
-  console.log('Component state:', { showChat, chatMessages: chatMessages.length, chatInput, isProcessing });
-
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     if (chatMessagesRef.current) {
@@ -116,10 +112,7 @@ const AppointmentsPage: React.FC = () => {
   );
 
   const callLLM = async (userMessage: string, conversationHistory: Message[]): Promise<LLMResponse> => {
-    console.log('callLLM function started with message:', userMessage);
-    
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    console.log('API key check:', apiKey ? 'API key found' : 'API key missing');
     
     if (!apiKey) {
       console.error('No API key found in environment variables');
@@ -152,9 +145,6 @@ Rules:
 - If a user provides multiple pieces of information at once, acknowledge all of them`;
 
     try {
-      console.log('Making fetch request to OpenAI API...');
-      console.log('Conversation history length:', conversationHistory.length);
-      
       // Convert conversation history to OpenAI format
       const conversationMessages = conversationHistory.map(msg => ({
         role: msg.role === 'user' ? 'user' as const : 'assistant' as const,
@@ -173,7 +163,6 @@ Rules:
         temperature: 0.7,
         max_tokens: 300,
       };
-      console.log('Request body with full conversation:', requestBody);
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -184,8 +173,6 @@ Rules:
         body: JSON.stringify(requestBody),
       });
 
-      console.log('Fetch response status:', response.status, response.statusText);
-
       if (!response.ok) {
         const errorText = await response.text();
         console.error('OpenAI API error response:', errorText);
@@ -193,10 +180,8 @@ Rules:
       }
 
       const data = await response.json();
-      console.log('OpenAI API response data:', data);
       
       const assistantMessage = data.choices[0]?.message?.content;
-      console.log('Assistant message:', assistantMessage);
 
       if (!assistantMessage) {
         throw new Error('No response from OpenAI');
@@ -204,9 +189,7 @@ Rules:
 
       // Parse the JSON response
       try {
-        console.log('Attempting to parse JSON response...');
         const llmResponse: LLMResponse = JSON.parse(assistantMessage);
-        console.log('Parsed LLM response:', llmResponse);
         return llmResponse;
       } catch (parseError) {
         console.warn('JSON parsing failed, using fallback response. Parse error:', parseError);
@@ -218,9 +201,6 @@ Rules:
         };
       }
     } catch (error) {
-      console.error('OpenAI API call failed - detailed error:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error constructor:', error.constructor.name);
       throw error;
     }
   };
@@ -298,12 +278,7 @@ Rules:
   };
 
   const handleChatSubmit = async () => {
-    console.log('=== handleChatSubmit called ===');
-    console.log('chatInput:', chatInput);
-    console.log('isProcessing:', isProcessing);
-    
     if (!chatInput.trim() || isProcessing) {
-      console.log('Early return - empty input or processing');
       return;
     }
 
@@ -321,11 +296,8 @@ Rules:
     setChatInput('');
 
     try {
-      console.log('Sending message to LLM:', chatInput);
-      
       // Call LLM with full conversation history
       const llmResponse = await callLLM(chatInput, chatMessages);
-      console.log('LLM Response received:', llmResponse);
       
       // Add LLM response to chat
       const botMessage: Message = {
@@ -338,7 +310,6 @@ Rules:
 
       // Handle different status responses
       if (llmResponse.status === 'complete') {
-        console.log('Creating appointment with data:', { date: llmResponse.date, time: llmResponse.time, location: llmResponse.location });
         // Create new appointment from LLM response
         if (llmResponse.date && llmResponse.time) {
           const newAppointment: Appointment = {
@@ -392,7 +363,6 @@ Rules:
   };
 
   const startAppointmentChat = () => {
-    console.log('startAppointmentChat function called');
     setShowChat(true);
     
     const welcomeMessage: Message = {
@@ -403,7 +373,6 @@ Rules:
     };
     
     setChatMessages([welcomeMessage]);
-    console.log('Chat started, welcome message added');
   };
 
   return (
@@ -562,13 +531,10 @@ Rules:
                   type="text"
                   value={chatInput}
                   onChange={(e) => {
-                    console.log('Input change:', e.target.value);
                     setChatInput(e.target.value);
                   }}
                   onKeyPress={(e) => {
-                    console.log('Key pressed:', e.key, 'isProcessing:', isProcessing);
                     if (e.key === "Enter" && !isProcessing) {
-                      console.log('Enter pressed, calling handleChatSubmit');
                       handleChatSubmit();
                     }
                   }}
@@ -578,7 +544,6 @@ Rules:
                 />
                 <button
                   onClick={() => {
-                    console.log('Send button clicked');
                     handleChatSubmit();
                   }}
                   disabled={isProcessing}
