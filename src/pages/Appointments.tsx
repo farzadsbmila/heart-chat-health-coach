@@ -123,7 +123,7 @@ const AppointmentsPage: React.FC = () => {
 
 You have access to the full conversation history, so you can reference previous messages and build upon the information already gathered.
 
-You must respond with valid JSON in this exact format:
+ALL of your responses must contain only valid JSON (no extra characters or delimiters). You must respond with valid JSON in this exact format:
 {
   "status": "complete"|"asking"|"unsupported",
   "response": "<your message to the user>",
@@ -133,7 +133,10 @@ You must respond with valid JSON in this exact format:
 }
 
 Rules:
+- Be concise
 - Use "asking" status when you need more information from the user
+- If a user doesn't know the value for a specific field, use TBD for that field
+- If a user enters an invalid value for a field three times, skip that field and use TBD
 - Use "complete" status only when you have all required info: appointment type, date, time, and location
 - Use "unsupported" status for non-appointment related requests
 - For "complete" status, include time in 24-hour format (e.g., "14:30" for 2:30 PM)
@@ -142,7 +145,9 @@ Rules:
 - Be conversational and helpful in your responses
 - Remember information from previous messages in the conversation
 - Ask for one piece of missing information at a time
-- If a user provides multiple pieces of information at once, acknowledge all of them`;
+- If a user provides multiple pieces of information at once, acknowledge all of them
+- Your responses must only contain valid JSON with the above format
+- If you ask for the location, use this question: "What is the location of the appointment, if you know it?"`;
 
     try {
       // Convert conversation history to OpenAI format
@@ -367,7 +372,11 @@ Rules:
     
     const welcomeMessage: Message = {
       id: Date.now().toString(),
-      content: "I'll help you schedule an appointment. What type of appointment would you like to schedule?",
+      content: `I'll help you schedule an appointment. Please provide this information. Skip any that you don't know:
+      - doctor name
+      - location
+      - time
+      - date`,
       role: 'assistant',
       timestamp: new Date()
     };
