@@ -46,7 +46,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // First time greeting
       addMessage(
         "assistant", 
-        "Hello! I'm your Heart Health Assistant. I'm here to help you manage your cardiovascular health. How can I assist you today?\n\n• Check your risk profile\n• Get health recommendations\n• Talk to your health coach"
+        "Hello! I'm your Heart Health Assistant. How can I help you today? Alternatively, choose one of the below: \n\n• Check your risk profile\n• Get health recommendations\n• Talk to your health coach"
       );
     }
 
