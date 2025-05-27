@@ -5,6 +5,7 @@ import HomeButton from "@/components/HomeButton";
 import BottomNav from "@/components/BottomNav";
 import ChatMessage from "@/components/ChatMessage";
 import { Message } from "@/types";
+import OpenAI from 'openai';
 
 interface Appointment {
   id: string;
@@ -29,6 +30,8 @@ const AppointmentsPage: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const chatMessagesRef = useRef<HTMLDivElement>(null);
   
   // Auto-scroll to bottom when new messages are added
@@ -311,6 +314,102 @@ Rules:
     setChatMessages([welcomeMessage]);
   };
 
+  const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('OpenAI API key not configured for voice transcription.');
+    }
+
+    try {
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true
+      });
+
+      // Convert blob to File for OpenAI SDK
+      const audioFile = new File([audioBlob], 'audio.webm', { type: 'audio/webm' });
+
+      const transcription = await openai.audio.transcriptions.create({
+        file: audioFile,
+        model: 'whisper-1',
+        language: 'en',
+        response_format: 'text'
+      });
+
+      return transcription.trim();
+    } catch (error) {
+      console.error('OpenAI transcription error:', error);
+      throw error;
+    }
+  };
+
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { 
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+          ? 'audio/webm;codecs=opus' 
+          : 'audio/webm' 
+      });
+      
+      const audioChunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        setIsProcessing(true);
+        try {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const transcription = await transcribeAudio(audioBlob);
+          
+          if (transcription.trim()) {
+            setChatInput(transcription.trim());
+          } else {
+            alert('No speech detected. Please try again.');
+          }
+        } catch (error) {
+          console.error('Transcription error:', error);
+          alert('Failed to transcribe audio. Please try again or type your message.');
+        } finally {
+          setIsProcessing(false);
+        }
+        
+        // Clean up media stream
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      alert('Could not access microphone. Please check permissions and try again.');
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      setMediaRecorder(null);
+      setIsRecording(false);
+    }
+  };
+
+  const handleVoiceButtonClick = () => {
+    if (isProcessing) return;
+    
+    if (isRecording) {
+      stopVoiceRecording();
+    } else {
+      startVoiceRecording();
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <HomeButton />
@@ -473,12 +572,20 @@ Rules:
                   className="flex-1 rounded-lg border border-gray-300 p-2 focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
                 <button
-                  onClick={() => {
-                    // Voice feature to be implemented later
-                  }}
+                  onClick={handleVoiceButtonClick}
                   disabled={isProcessing}
-                  className="rounded-lg bg-gray-500 p-2 text-white hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  title="Voice input (coming soon)"
+                  className={`rounded-lg p-2 text-white transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed ${
+                    isRecording 
+                      ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                      : 'bg-gray-500 hover:bg-gray-600'
+                  }`}
+                  title={
+                    isProcessing 
+                      ? "Processing transcription..." 
+                      : isRecording 
+                        ? "Stop recording" 
+                        : "Start voice recording"
+                  }
                 >
                   <Mic className="h-5 w-5" />
                 </button>
