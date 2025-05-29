@@ -23,6 +23,9 @@ const NAVIGATION_SECTIONS = {
   'voice mode': '/voice-mode'
 } as const;
 
+// Toggle to enable/disable text input in voice mode
+const ENABLE_TEXT_INPUT = true;
+
 const VoiceModePage: React.FC = () => {
   const navigate = useNavigate();
   const [showChatOverlay, setShowChatOverlay] = useState(false);
@@ -283,7 +286,9 @@ Always be supportive and professional in your responses.`;
       setShowChatOverlay(true);
       setChatMessages([{
         id: Date.now().toString(),
-        content: "Hello! I'm your health assistant. How can I help you today? I can answer health questions, help with appointments, and even navigate you to different sections of the app. You can speak using the microphone or type your message!",
+        content: ENABLE_TEXT_INPUT 
+          ? "Hello! I'm your health assistant. How can I help you today? I can answer health questions, help with appointments, and even navigate you to different sections of the app. You can speak using the microphone or type your message!"
+          : "Hello! I'm your health assistant. How can I help you today? I can answer health questions, help with appointments, and even navigate you to different sections of the app. Just tap the microphone and start speaking!",
         role: 'assistant',
         timestamp: new Date()
       }]);
@@ -372,29 +377,31 @@ Always be supportive and professional in your responses.`;
           </div>
           
           {/* Text Input Area */}
-          <div className="px-4 py-2 max-w-4xl mx-auto w-full">
-            <div className="flex items-center space-x-2 bg-white bg-opacity-90 rounded-lg p-2">
-              <input
-                type="text"
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type your message here..."
-                disabled={isProcessing}
-                className="flex-1 px-3 py-2 bg-transparent border-none outline-none text-gray-800 placeholder-gray-500"
-              />
-              <button
-                onClick={sendTextMessage}
-                disabled={!textInput.trim() || isProcessing}
-                className="p-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-lg transition-colors"
-              >
-                <Send className="h-5 w-5 text-white" />
-              </button>
+          {ENABLE_TEXT_INPUT && (
+            <div className="px-4 py-2 max-w-4xl mx-auto w-full">
+              <div className="flex items-center space-x-2 bg-white bg-opacity-90 rounded-lg p-2">
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type your message here..."
+                  disabled={isProcessing}
+                  className="flex-1 px-3 py-2 bg-transparent border-none outline-none text-gray-800 placeholder-gray-500"
+                />
+                <button
+                  onClick={sendTextMessage}
+                  disabled={!textInput.trim() || isProcessing}
+                  className="p-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-lg transition-colors"
+                >
+                  <Send className="h-5 w-5 text-white" />
+                </button>
+              </div>
+              <p className="text-center text-white text-sm mt-2 opacity-75">
+                Type your message or use voice below
+              </p>
             </div>
-            <p className="text-center text-white text-sm mt-2 opacity-75">
-              Type your message or use voice below
-            </p>
-          </div>
+          )}
           
           {/* Voice Control */}
           <div className="flex flex-col items-center py-4">
