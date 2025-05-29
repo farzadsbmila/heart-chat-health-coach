@@ -684,10 +684,10 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
 
       {/* Chat Overlay */}
       {showChatOverlay && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex flex-col justify-between z-50 p-4">
+        <div className="fixed inset-0 bg-white bg-opacity-90 flex flex-col justify-between z-50 p-4">
           {/* Close Button */}
           <div className="flex justify-between items-center">
-            <div className="text-white">
+            <div className="text-gray-800">
               <span className="text-sm opacity-75">Active Agent:</span>
               <span className={`ml-2 px-2 py-1 rounded text-sm font-medium ${
                 activeAgent === 'main' 
@@ -699,7 +699,7 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
             </div>
             <button
               onClick={closeChatOverlay}
-              className="text-white hover:text-gray-300 p-2 rounded-full bg-black bg-opacity-50"
+              className="text-gray-800 hover:text-gray-600 p-2 rounded-full bg-gray-200 bg-opacity-50"
             >
               <X className="h-8 w-8" />
             </button>
@@ -764,7 +764,7 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
                 return (
                   <div key={index} className={`mb-6 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
                     <div
-                      className={`inline-block max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
+                      className={`inline-block max-w-xs lg:max-w-md px-4 py-3 rounded-lg border-2 border-gray-600 ${
                         message.role === 'user'
                           ? 'bg-white text-gray-800'
                           : 'bg-black bg-opacity-80 text-white'
@@ -779,16 +779,16 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
             
             {isProcessing && (
               <div className="text-center py-4">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                <p className="text-white text-base mt-2">Processing your message...</p>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800"></div>
+                <p className="text-gray-800 text-base mt-2">Processing your message...</p>
               </div>
             )}
           </div>
           
           {/* Text Input Area */}
           {ENABLE_TEXT_INPUT && (
-            <div className="px-4 py-2 max-w-4xl mx-auto w-full">
-              <div className="flex items-center space-x-2 bg-white bg-opacity-90 rounded-lg p-2">
+            <div className="px-4 py-2 max-w-4xl mx-auto w-full ">
+              <div className="flex items-center space-x-2 bg-white bg-opacity-90 rounded-lg p-2 border-4 border-gray-300">
                 <input
                   type="text"
                   value={textInput}
@@ -796,7 +796,7 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
                   onKeyPress={handleKeyPress}
                   placeholder="Type your message here..."
                   disabled={isProcessing}
-                  className="flex-1 px-3 py-2 bg-transparent border-none outline-none text-gray-800 placeholder-gray-500"
+                  className="flex-1 px-3 py-2 bg-transparent  outline-none text-gray-800 placeholder-gray-500 rounded"
                 />
                 <button
                   onClick={sendTextMessage}
@@ -806,7 +806,7 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
                   <Send className="h-5 w-5 text-white" />
                 </button>
               </div>
-              <p className="text-center text-white text-sm mt-2 opacity-75">
+              <p className="text-center text-gray-800 text-sm mt-2 opacity-75">
                 Type your message or use voice below
               </p>
             </div>
@@ -839,7 +839,7 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
             >
               <Mic className="h-10 w-10" />
             </button>
-            <p className="text-center text-white text-lg mt-4 font-medium">
+            <p className="text-center text-gray-800 text-lg mt-4 font-medium">
               {isProcessing 
                 ? "Processing your message..." 
                 : isRecording 
