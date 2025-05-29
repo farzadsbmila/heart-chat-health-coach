@@ -40,6 +40,16 @@ interface AppointmentMessage extends Message {
   appointments: Appointment[];
 }
 
+interface AppointmentData {
+  doctor?: string;
+  specialty?: string;
+  date?: string;
+  time?: string;
+  location?: string;
+}
+
+type AgentType = 'main' | 'appointment_scheduler';
+
 const VoiceModePage: React.FC = () => {
   const navigate = useNavigate();
   const [showChatOverlay, setShowChatOverlay] = useState(false);
@@ -48,6 +58,8 @@ const VoiceModePage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [textInput, setTextInput] = useState("");
+  const [activeAgent, setActiveAgent] = useState<AgentType>('main');
+  const [appointmentData, setAppointmentData] = useState<AppointmentData>({});
   const chatMessagesRef = useRef<HTMLDivElement>(null);
 
   // Create dynamic dates for appointments (same logic as Appointments.tsx)
@@ -64,7 +76,7 @@ const VoiceModePage: React.FC = () => {
   };
 
   // Sample appointments data (same as Appointments.tsx)
-  const [appointments] = useState<Appointment[]>([
+  const [appointments, setAppointments] = useState<Appointment[]>([
     {
       id: '1',
       doctor: 'Dr. Smith',
@@ -158,6 +170,47 @@ const VoiceModePage: React.FC = () => {
       // Return the response without the appointment command
       return aiResponse.replace(/\[show_appointments\]/gi, '').trim();
     }
+
+    // Check if the response contains agent handoff instructions
+    if (lowercaseResponse.includes('[handoff_to_scheduler]')) {
+      // Switch to appointment scheduling agent
+      setTimeout(() => {
+        setActiveAgent('appointment_scheduler');
+        setAppointmentData({});
+        
+        const handoffMessage: Message = {
+          id: Date.now().toString(),
+          content: "I'll help you schedule a new appointment. Let's start by getting some information. What type of appointment would you like to schedule? (e.g., Cardiologist, General checkup, etc.)",
+          role: 'assistant',
+          timestamp: new Date()
+        };
+        setChatMessages(prev => [...prev, handoffMessage]);
+      }, 500);
+      
+      // Return the response without the handoff command
+      return aiResponse.replace(/\[handoff_to_scheduler\]/gi, '').trim();
+    }
+
+    // Check if the response contains appointment completion instructions
+    if (lowercaseResponse.includes('[appointment_complete]')) {
+      // Create the appointment and switch back to main agent
+      setTimeout(() => {
+        const newAppointment = createAppointment(appointmentData);
+        setActiveAgent('main');
+        setAppointmentData({});
+        
+        const completionMessage: Message = {
+          id: Date.now().toString(),
+          content: `Great! I've successfully scheduled your appointment with ${newAppointment.doctor} for ${formatAppointmentDate(newAppointment.date)} at ${formatTime(newAppointment.time)}. Is there anything else I can help you with?`,
+          role: 'assistant',
+          timestamp: new Date()
+        };
+        setChatMessages(prev => [...prev, completionMessage]);
+      }, 500);
+      
+      // Return the response without the completion command
+      return aiResponse.replace(/\[appointment_complete\]/gi, '').trim();
+    }
     
     return aiResponse;
   };
@@ -209,7 +262,7 @@ const VoiceModePage: React.FC = () => {
       throw new Error('OpenAI API key not found. Please set VITE_OPENAI_API_KEY in your environment variables.');
     }
 
-    const systemPrompt = `You are a helpful health assistant for a cardiac monitoring app called Cardio Twin. You help users with general health questions, appointment scheduling, medication reminders, and cardiac health guidance. 
+    const mainAgentPrompt = `You are a helpful health assistant for a cardiac monitoring app called Cardio Twin. You help users with general health questions, appointment scheduling, medication reminders, and cardiac health guidance. 
 
 You have access to the full conversation history, so you can reference previous messages and build upon the information already gathered.
 
@@ -238,6 +291,12 @@ Examples of appointment viewing responses:
 - "Here are your scheduled appointments. [show_appointments]"
 - "I'll display your current appointments for you. [show_appointments]"
 
+IMPORTANT: When a user wants to schedule a NEW appointment, book an appointment, or create an appointment, you should hand off to the appointment scheduling specialist. Use this command: [handoff_to_scheduler]
+
+Examples of scheduling handoff responses:
+- "I'll help you schedule a new appointment. Let me connect you with our appointment scheduling specialist. [handoff_to_scheduler]"
+- "Let me transfer you to our scheduling agent to book that appointment. [handoff_to_scheduler]"
+
 Keep responses concise and friendly. If users ask about serious symptoms, advise them to contact their healthcare provider immediately. You can help with:
 - General health questions
 - Appointment scheduling guidance
@@ -247,8 +306,35 @@ Keep responses concise and friendly. If users ask about serious symptoms, advise
 - Emergency guidance
 - Navigation between app sections
 - Viewing current appointments
+- Handoff to appointment scheduling
 
 Always be supportive and professional in your responses.`;
+
+    const schedulingAgentPrompt = `You are a specialized appointment scheduling agent for a healthcare app. Your only job is to gather information needed to schedule a medical appointment and then complete the booking.
+
+Current appointment data gathered so far:
+${Object.entries(appointmentData).map(([key, value]) => `${key}: ${value || 'Not provided'}`).join('\n')}
+
+You need to collect these required fields:
+- specialty: Type of appointment (e.g., Cardiologist, General checkup, Dermatologist)
+- doctor: Doctor's name (can be "TBD" if not specified)
+- date: Appointment date (accept formats like "tomorrow", "next Tuesday", "January 15", etc.)
+- time: Appointment time (accept formats like "2 PM", "14:30", "morning", etc.)
+- location: Where the appointment will be (can be "TBD" if not specified)
+
+Instructions:
+1. Ask for ONE piece of missing information at a time
+2. Be conversational and friendly
+3. Accept partial information and natural language
+4. If user says they don't know something, record it as "TBD"
+5. When you have collected specialty, doctor, date, time, and location, complete the appointment with: [appointment_complete]
+
+Example completion response:
+"Perfect! I have all the information needed. [appointment_complete]"
+
+Current conversation context: You are actively scheduling an appointment. Stay focused on gathering the missing appointment details.`;
+
+    const systemPrompt = activeAgent === 'main' ? mainAgentPrompt : schedulingAgentPrompt;
 
     try {
       const openai = new OpenAI({
@@ -276,11 +362,83 @@ Always be supportive and professional in your responses.`;
       });
 
       const aiResponse = completion.choices[0]?.message?.content || 'Sorry, I could not process your request.';
+      
+      // If we're in scheduling mode, try to extract appointment data from the response
+      if (activeAgent === 'appointment_scheduler') {
+        extractAppointmentData(userMessage);
+      }
+      
       return handleNavigation(aiResponse);
     } catch (error) {
       console.error('Error calling OpenAI:', error);
       throw error;
     }
+  };
+
+  // Function to extract appointment data from user input
+  const extractAppointmentData = (userMessage: string) => {
+    const message = userMessage.toLowerCase();
+    const updatedData = { ...appointmentData };
+
+    // Extract specialty
+    if (message.includes('cardiologist') || message.includes('heart')) {
+      updatedData.specialty = 'Cardiologist';
+    } else if (message.includes('general') || message.includes('checkup')) {
+      updatedData.specialty = 'General';
+    } else if (message.includes('dermatologist') || message.includes('skin')) {
+      updatedData.specialty = 'Dermatologist';
+    }
+
+    // Extract doctor names (simple pattern matching)
+    const doctorMatch = message.match(/dr\.?\s+([a-z]+)/i);
+    if (doctorMatch) {
+      updatedData.doctor = `Dr. ${doctorMatch[1].charAt(0).toUpperCase() + doctorMatch[1].slice(1)}`;
+    }
+
+    // Extract time patterns
+    const timePatterns = [
+      /(\d{1,2}):(\d{2})\s*(am|pm)?/i,
+      /(\d{1,2})\s*(am|pm)/i,
+      /(morning|afternoon|evening)/i
+    ];
+    
+    for (const pattern of timePatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        if (match[3] || match[2]) { // Has AM/PM or is morning/afternoon/evening
+          updatedData.time = match[0];
+        } else if (match[1] && match[2]) { // 24-hour format
+          updatedData.time = `${match[1]}:${match[2]}`;
+        }
+        break;
+      }
+    }
+
+    // Extract date patterns
+    const datePatterns = [
+      /tomorrow/i,
+      /next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
+      /(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}/i,
+      /\d{1,2}\/\d{1,2}\/\d{4}/
+    ];
+    
+    for (const pattern of datePatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        updatedData.date = match[0];
+        break;
+      }
+    }
+
+    // Extract location
+    if (message.includes('clinic') || message.includes('hospital') || message.includes('center')) {
+      const locationMatch = message.match(/([\w\s]+(?:clinic|hospital|center)[\w\s]*)/i);
+      if (locationMatch) {
+        updatedData.location = locationMatch[1].trim();
+      }
+    }
+
+    setAppointmentData(updatedData);
   };
 
   const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
@@ -456,9 +614,26 @@ Always be supportive and professional in your responses.`;
     setShowChatOverlay(false);
     setChatMessages([]);
     setTextInput("");
+    setActiveAgent('main');
+    setAppointmentData({});
     if (isRecording) {
       stopVoiceRecording();
     }
+  };
+
+  // Function to create a new appointment
+  const createAppointment = (appointmentData: AppointmentData) => {
+    const newAppointment: Appointment = {
+      id: Date.now().toString(),
+      doctor: appointmentData.doctor || 'TBD',
+      specialty: appointmentData.specialty || 'General',
+      date: appointmentData.date || getDatePlusDays(7), // Default to next week
+      time: appointmentData.time || '10:00',
+      location: appointmentData.location || 'TBD'
+    };
+    
+    setAppointments(prev => [...prev, newAppointment]);
+    return newAppointment;
   };
 
   return (
@@ -489,7 +664,17 @@ Always be supportive and professional in your responses.`;
       {showChatOverlay && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex flex-col justify-between z-50 p-4">
           {/* Close Button */}
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            <div className="text-white">
+              <span className="text-sm opacity-75">Active Agent:</span>
+              <span className={`ml-2 px-2 py-1 rounded text-sm font-medium ${
+                activeAgent === 'main' 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-orange-500 text-white'
+              }`}>
+                {activeAgent === 'main' ? '🏥 Health Assistant' : '📅 Appointment Scheduler'}
+              </span>
+            </div>
             <button
               onClick={closeChatOverlay}
               className="text-white hover:text-gray-300 p-2 rounded-full bg-black bg-opacity-50"
