@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import HomeButton from "@/components/HomeButton";
 import BottomNav from "@/components/BottomNav";
 import ChatMessage from "@/components/ChatMessage";
-import RiskProfileWidget from "@/components/RiskProfileWidget";
+import { RiskProfileWidget } from "@/components/RiskProfileSection";
 import { Message } from "@/types";
 import OpenAI from 'openai';
 
