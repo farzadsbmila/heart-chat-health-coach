@@ -48,6 +48,16 @@ interface AppointmentData {
   location?: string;
 }
 
+interface SchedulingResponse {
+  status: "complete" | "asking" | "unsupported";
+  response: string;
+  time?: string;
+  date?: string;
+  location?: string;
+  doctor?: string;
+  specialty?: string;
+}
+
 type AgentType = 'main' | 'appointment_scheduler';
 
 const VoiceModePage: React.FC = () => {
@@ -190,27 +200,6 @@ const VoiceModePage: React.FC = () => {
       // Return the response without the handoff command
       return aiResponse.replace(/\[handoff_to_scheduler\]/gi, '').trim();
     }
-
-    // Check if the response contains appointment completion instructions
-    if (lowercaseResponse.includes('[appointment_complete]')) {
-      // Create the appointment and switch back to main agent
-      setTimeout(() => {
-        const newAppointment = createAppointment(appointmentData);
-        setActiveAgent('main');
-        setAppointmentData({});
-        
-        const completionMessage: Message = {
-          id: Date.now().toString(),
-          content: `Great! I've successfully scheduled your appointment with ${newAppointment.doctor} for ${formatAppointmentDate(newAppointment.date)} at ${formatTime(newAppointment.time)}. Is there anything else I can help you with?`,
-          role: 'assistant',
-          timestamp: new Date()
-        };
-        setChatMessages(prev => [...prev, completionMessage]);
-      }, 500);
-      
-      // Return the response without the completion command
-      return aiResponse.replace(/\[appointment_complete\]/gi, '').trim();
-    }
     
     return aiResponse;
   };
@@ -310,29 +299,42 @@ Keep responses concise and friendly. If users ask about serious symptoms, advise
 
 Always be supportive and professional in your responses.`;
 
-    const schedulingAgentPrompt = `You are a specialized appointment scheduling agent for a healthcare app. Your only job is to gather information needed to schedule a medical appointment and then complete the booking.
+    const schedulingAgentPrompt = `You are a specialized appointment scheduling agent for a healthcare app. Your job is to help users schedule medical appointments by gathering the necessary information: appointment type, date, time, doctor, and location.
+
+You have access to the full conversation history, so you can reference previous messages and build upon the information already gathered.
 
 Current appointment data gathered so far:
 ${Object.entries(appointmentData).map(([key, value]) => `${key}: ${value || 'Not provided'}`).join('\n')}
 
-You need to collect these required fields:
-- specialty: Type of appointment (e.g., Cardiologist, General checkup, Dermatologist)
-- doctor: Doctor's name (can be "TBD" if not specified)
-- date: Appointment date (accept formats like "tomorrow", "next Tuesday", "January 15", etc.)
-- time: Appointment time (accept formats like "2 PM", "14:30", "morning", etc.)
-- location: Where the appointment will be (can be "TBD" if not specified)
+ALL of your responses must contain only valid JSON (no extra characters or delimiters). You must respond with valid JSON in this exact format:
+{
+  "status": "complete"|"asking"|"unsupported",
+  "response": "<your message to the user>",
+  "specialty": "<specialty>"|null,
+  "doctor": "<doctor name>"|null,
+  "time": "HH:MM"|null,
+  "date": "YYYY-MM-DD"|null,
+  "location": "<location>"|null
+}
 
-Instructions:
-1. Ask for ONE piece of missing information at a time
-2. Be conversational and friendly
-3. Accept partial information and natural language
-4. If user says they don't know something, record it as "TBD"
-5. When you have collected specialty, doctor, date, time, and location, complete the appointment with: [appointment_complete]
+Rules:
+- Be concise and conversational
+- Use "asking" status when you need more information from the user
+- If a user doesn't know the value for a specific field, use "TBD" for that field
+- If a user enters an invalid value for a field three times, skip that field and use "TBD"
+- Use "complete" status only when you have all required info: specialty, doctor, date, time, and location
+- Use "unsupported" status for non-appointment related requests
+- For "complete" status, include time in 24-hour format (e.g., "14:30" for 2:30 PM)
+- For "complete" status, convert date to YYYY-MM-DD format
+- Parse natural language dates like "tomorrow", "January 15", "next Monday"
+- Parse natural language times like "2 PM", "morning", "afternoon"
+- Be conversational and helpful in your responses
+- Remember information from previous messages in the conversation
+- Ask for one piece of missing information at a time
+- If a user provides multiple pieces of information at once, acknowledge all of them
+- Your responses must only contain valid JSON with the above format
 
-Example completion response:
-"Perfect! I have all the information needed. [appointment_complete]"
-
-Current conversation context: You are actively scheduling an appointment. Stay focused on gathering the missing appointment details.`;
+Context: You are actively scheduling an appointment. Stay focused on gathering the missing appointment details.`;
 
     const systemPrompt = activeAgent === 'main' ? mainAgentPrompt : schedulingAgentPrompt;
 
@@ -363,9 +365,45 @@ Current conversation context: You are actively scheduling an appointment. Stay f
 
       const aiResponse = completion.choices[0]?.message?.content || 'Sorry, I could not process your request.';
       
-      // If we're in scheduling mode, try to extract appointment data from the response
+      // If we're in scheduling mode, try to parse JSON response
       if (activeAgent === 'appointment_scheduler') {
-        extractAppointmentData(userMessage);
+        try {
+          const schedulingResponse: SchedulingResponse = JSON.parse(aiResponse);
+          
+          // Update appointment data with any new information
+          const updatedData = { ...appointmentData };
+          if (schedulingResponse.specialty) updatedData.specialty = schedulingResponse.specialty;
+          if (schedulingResponse.doctor) updatedData.doctor = schedulingResponse.doctor;
+          if (schedulingResponse.date) updatedData.date = schedulingResponse.date;
+          if (schedulingResponse.time) updatedData.time = schedulingResponse.time;
+          if (schedulingResponse.location) updatedData.location = schedulingResponse.location;
+          setAppointmentData(updatedData);
+          
+          // Check if appointment is complete
+          if (schedulingResponse.status === 'complete') {
+            // Trigger appointment completion
+            setTimeout(() => {
+              const newAppointment = createAppointment(updatedData);
+              setActiveAgent('main');
+              setAppointmentData({});
+              
+              const completionMessage: Message = {
+                id: Date.now().toString(),
+                content: `Great! I've successfully scheduled your appointment with ${newAppointment.doctor} for ${formatAppointmentDate(newAppointment.date)} at ${formatTime(newAppointment.time)}. Is there anything else I can help you with?`,
+                role: 'assistant',
+                timestamp: new Date()
+              };
+              setChatMessages(prev => [...prev, completionMessage]);
+            }, 500);
+          }
+          
+          return schedulingResponse.response;
+        } catch (parseError) {
+          console.warn('JSON parsing failed for scheduling response:', parseError);
+          console.warn('Raw response:', aiResponse);
+          // Return raw response as fallback
+          return aiResponse;
+        }
       }
       
       return handleNavigation(aiResponse);
@@ -373,72 +411,6 @@ Current conversation context: You are actively scheduling an appointment. Stay f
       console.error('Error calling OpenAI:', error);
       throw error;
     }
-  };
-
-  // Function to extract appointment data from user input
-  const extractAppointmentData = (userMessage: string) => {
-    const message = userMessage.toLowerCase();
-    const updatedData = { ...appointmentData };
-
-    // Extract specialty
-    if (message.includes('cardiologist') || message.includes('heart')) {
-      updatedData.specialty = 'Cardiologist';
-    } else if (message.includes('general') || message.includes('checkup')) {
-      updatedData.specialty = 'General';
-    } else if (message.includes('dermatologist') || message.includes('skin')) {
-      updatedData.specialty = 'Dermatologist';
-    }
-
-    // Extract doctor names (simple pattern matching)
-    const doctorMatch = message.match(/dr\.?\s+([a-z]+)/i);
-    if (doctorMatch) {
-      updatedData.doctor = `Dr. ${doctorMatch[1].charAt(0).toUpperCase() + doctorMatch[1].slice(1)}`;
-    }
-
-    // Extract time patterns
-    const timePatterns = [
-      /(\d{1,2}):(\d{2})\s*(am|pm)?/i,
-      /(\d{1,2})\s*(am|pm)/i,
-      /(morning|afternoon|evening)/i
-    ];
-    
-    for (const pattern of timePatterns) {
-      const match = message.match(pattern);
-      if (match) {
-        if (match[3] || match[2]) { // Has AM/PM or is morning/afternoon/evening
-          updatedData.time = match[0];
-        } else if (match[1] && match[2]) { // 24-hour format
-          updatedData.time = `${match[1]}:${match[2]}`;
-        }
-        break;
-      }
-    }
-
-    // Extract date patterns
-    const datePatterns = [
-      /tomorrow/i,
-      /next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
-      /(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}/i,
-      /\d{1,2}\/\d{1,2}\/\d{4}/
-    ];
-    
-    for (const pattern of datePatterns) {
-      const match = message.match(pattern);
-      if (match) {
-        updatedData.date = match[0];
-        break;
-      }
-    }
-
-    // Extract location
-    if (message.includes('clinic') || message.includes('hospital') || message.includes('center')) {
-      const locationMatch = message.match(/([\w\s]+(?:clinic|hospital|center)[\w\s]*)/i);
-      if (locationMatch) {
-        updatedData.location = locationMatch[1].trim();
-      }
-    }
-
-    setAppointmentData(updatedData);
   };
 
   const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
@@ -706,13 +678,13 @@ Current conversation context: You are actively scheduling an appointment. Stay f
                             <Stethoscope className="h-6 w-6 text-teal-500" />
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-800">
+                            <h3 className="text-xl font-semibold text-gray-800">
                               Appointment with {appointment.specialty}
                             </h3>
-                            <p className="text-gray-600 font-bold underline">
+                            <p className="text-lg text-gray-600 font-bold underline">
                               {formatAppointmentDate(appointment.date)} at {formatTime(appointment.time)}
                             </p>
-                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                            <div className="flex items-center gap-4 mt-2 text-base text-gray-500">
                               <div className="flex items-center gap-1">
                                 <Stethoscope className="h-4 w-4" />
                                 <span>{appointment.doctor}</span>
@@ -741,7 +713,7 @@ Current conversation context: You are actively scheduling an appointment. Stay f
                           : 'bg-black bg-opacity-80 text-white'
                       }`}
                     >
-                      <p className="text-lg">{message.content}</p>
+                      <p className="text-2xl" style={{ fontSize: '22px' }}>{message.content}</p>
                     </div>
                   </div>
                 );
@@ -751,7 +723,7 @@ Current conversation context: You are actively scheduling an appointment. Stay f
             {isProcessing && (
               <div className="text-center py-4">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                <p className="text-white text-sm mt-2">Processing your message...</p>
+                <p className="text-white text-base mt-2">Processing your message...</p>
               </div>
             )}
           </div>
