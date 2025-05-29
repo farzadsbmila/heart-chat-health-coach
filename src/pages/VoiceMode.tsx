@@ -1,17 +1,36 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, X } from "lucide-react";
+import { Mic, X, Send } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import HomeButton from "@/components/HomeButton";
 import BottomNav from "@/components/BottomNav";
 import ChatMessage from "@/components/ChatMessage";
 import { Message } from "@/types";
 import OpenAI from 'openai';
 
+// Navigation mapping for voice commands
+const NAVIGATION_SECTIONS = {
+  'home': '/',
+  'chat': '/chat', 
+  'risk': '/risk-profile',
+  'risk profile': '/risk-profile',
+  'recommendations': '/recommendations',
+  'recs': '/recommendations',
+  'coaching': '/coaching',
+  'coach': '/coaching',
+  'alerts': '/alerts',
+  'calendar': '/calendar',
+  'appointments': '/appointments',
+  'voice mode': '/voice-mode'
+} as const;
+
 const VoiceModePage: React.FC = () => {
+  const navigate = useNavigate();
   const [showChatOverlay, setShowChatOverlay] = useState(false);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [textInput, setTextInput] = useState("");
   const chatMessagesRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages are added
@@ -20,6 +39,32 @@ const VoiceModePage: React.FC = () => {
       chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
     }
   }, [chatMessages]);
+
+  // Helper function to handle navigation
+  const handleNavigation = (aiResponse: string): string => {
+    const lowercaseResponse = aiResponse.toLowerCase();
+    
+    // Check if the response contains navigation instructions
+    if (lowercaseResponse.includes('[navigate:') && lowercaseResponse.includes(']')) {
+      const navigationMatch = lowercaseResponse.match(/\[navigate:\s*([^\]]+)\]/);
+      if (navigationMatch) {
+        const sectionName = navigationMatch[1].trim();
+        const targetPath = NAVIGATION_SECTIONS[sectionName as keyof typeof NAVIGATION_SECTIONS];
+        
+        if (targetPath) {
+          // Navigate after a short delay to allow the message to be displayed
+          setTimeout(() => {
+            navigate(targetPath);
+          }, 1500);
+          
+          // Return the response without the navigation command
+          return aiResponse.replace(/\[navigate:\s*[^\]]+\]/gi, '').trim();
+        }
+      }
+    }
+    
+    return aiResponse;
+  };
 
   const callLLM = async (userMessage: string, conversationHistory: Message[]): Promise<string> => {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
@@ -32,6 +77,24 @@ const VoiceModePage: React.FC = () => {
 
 You have access to the full conversation history, so you can reference previous messages and build upon the information already gathered.
 
+IMPORTANT: You can also help users navigate to different sections of the app. When a user requests to go to a specific section, include a navigation command in your response using this format: [navigate: section_name]
+
+Available sections are:
+- home: Main dashboard
+- chat: Text chat interface
+- risk: Risk profile assessment
+- recommendations: Health recommendations  
+- coaching: Health coaching content
+- alerts: Health alerts and notifications
+- calendar: Calendar view
+- appointments: Appointment management
+- voice mode: Voice conversation mode (current section)
+
+Examples of navigation responses:
+- "I'll take you to your appointments section now. [navigate: appointments]"
+- "Let me open the risk profile for you. [navigate: risk]"
+- "Sure, I'll navigate you to the recommendations section. [navigate: recommendations]"
+
 Keep responses concise and friendly. If users ask about serious symptoms, advise them to contact their healthcare provider immediately. You can help with:
 - General health questions
 - Appointment scheduling guidance
@@ -39,6 +102,7 @@ Keep responses concise and friendly. If users ask about serious symptoms, advise
 - Cardiac health tips
 - Lifestyle recommendations
 - Emergency guidance
+- Navigation between app sections
 
 Always be supportive and professional in your responses.`;
 
@@ -48,26 +112,29 @@ Always be supportive and professional in your responses.`;
         dangerouslyAllowBrowser: true
       });
 
-      // Prepare input for the Responses API
-      const input = [
-        { role: 'system', content: systemPrompt, type: 'message' },
-        ...conversationHistory.map(msg => ({
-          role: msg.role,
-          content: msg.content,
-          type: 'message'
-        })),
-        { role: 'user', content: userMessage, type: 'message' }
-      ];
+      // Convert conversation history to OpenAI format
+      const conversationMessages = conversationHistory.map(msg => ({
+        role: msg.role === 'user' ? 'user' as const : 'assistant' as const,
+        content: msg.content
+      }));
+      
+      // Add the new user message
+      conversationMessages.push({ role: 'user', content: userMessage });
 
-      const response = await openai.responses.create({
+      const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
-        input,
-        temperature: 0.7
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...conversationMessages
+        ],
+        temperature: 0.7,
+        max_tokens: 300,
       });
 
-      return response.output_text || 'Sorry, I could not process your request.';
+      const aiResponse = completion.choices[0]?.message?.content || 'Sorry, I could not process your request.';
+      return handleNavigation(aiResponse);
     } catch (error) {
-      console.error('Error calling OpenAI Responses API:', error);
+      console.error('Error calling OpenAI:', error);
       throw error;
     }
   };
@@ -184,12 +251,62 @@ Always be supportive and professional in your responses.`;
     }
   };
 
+  const sendTextMessage = async () => {
+    if (!textInput.trim() || isProcessing) return;
+    
+    const messageText = textInput.trim();
+    setTextInput("");
+    setIsProcessing(true);
+
+    try {
+      // Add user message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        content: messageText,
+        role: 'user',
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, userMessage]);
+
+      // Get AI response
+      try {
+        const aiResponse = await callLLM(messageText, chatMessages);
+        const botMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: aiResponse,
+          role: 'assistant',
+          timestamp: new Date()
+        };
+        setChatMessages(prev => [...prev, botMessage]);
+      } catch (error) {
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: 'Sorry, I encountered an error. Please try again.',
+          role: 'assistant',
+          timestamp: new Date()
+        };
+        setChatMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('Error sending text message:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendTextMessage();
+    }
+  };
+
   const handleMicrophoneClick = () => {
     if (!showChatOverlay) {
       setShowChatOverlay(true);
       setChatMessages([{
         id: Date.now().toString(),
-        content: "Hello! I'm your health assistant. How can I help you today? Just tap the microphone and start speaking.",
+        content: "Hello! I'm your health assistant. How can I help you today? I can answer health questions, help with appointments, and even navigate you to different sections of the app. You can speak using the microphone or type your message!",
         role: 'assistant',
         timestamp: new Date()
       }]);
@@ -207,6 +324,7 @@ Always be supportive and professional in your responses.`;
   const closeChatOverlay = () => {
     setShowChatOverlay(false);
     setChatMessages([]);
+    setTextInput("");
     if (isRecording) {
       stopVoiceRecording();
     }
@@ -274,6 +392,31 @@ Always be supportive and professional in your responses.`;
                 <p className="text-white text-sm mt-2">Processing your message...</p>
               </div>
             )}
+          </div>
+          
+          {/* Text Input Area */}
+          <div className="px-4 py-2 max-w-4xl mx-auto w-full">
+            <div className="flex items-center space-x-2 bg-white bg-opacity-90 rounded-lg p-2">
+              <input
+                type="text"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message here..."
+                disabled={isProcessing}
+                className="flex-1 px-3 py-2 bg-transparent border-none outline-none text-gray-800 placeholder-gray-500"
+              />
+              <button
+                onClick={sendTextMessage}
+                disabled={!textInput.trim() || isProcessing}
+                className="p-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-lg transition-colors"
+              >
+                <Send className="h-5 w-5 text-white" />
+              </button>
+            </div>
+            <p className="text-center text-white text-sm mt-2 opacity-75">
+              Type your message or use voice below
+            </p>
           </div>
           
           {/* Voice Control */}
