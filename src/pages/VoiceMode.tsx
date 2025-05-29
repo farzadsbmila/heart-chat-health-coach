@@ -65,6 +65,22 @@ interface SchedulingResponse {
 
 type AgentType = 'main' | 'appointment_scheduler';
 
+// Available OpenAI TTS voices
+const TTS_VOICES = [
+  { value: 'alloy', label: 'Alloy' },
+  { value: 'ash', label: 'Ash' },
+  { value: 'ballad', label: 'Ballad' },
+  { value: 'coral', label: 'Coral' },
+  { value: 'echo', label: 'Echo' },
+  { value: 'fable', label: 'Fable' },
+  { value: 'nova', label: 'Nova' },
+  { value: 'onyx', label: 'Onyx' },
+  { value: 'sage', label: 'Sage' },
+  { value: 'shimmer', label: 'Shimmer' }
+] as const;
+
+type TTSVoice = typeof TTS_VOICES[number]['value'];
+
 // Welcome message constants
 const WELCOME_MESSAGE_WITH_TEXT_INPUT = `Hello! I'm your health assistant. How can I help you today? 
 I can answer health questions, help with appointments and show your risks.`; 
@@ -88,6 +104,7 @@ const VoiceModePage: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [isLongModeEnabled, setIsLongModeEnabled] = useState(false);
+  const [selectedTtsVoice, setSelectedTtsVoice] = useState<TTSVoice>('shimmer');
   const chatMessagesRef = useRef<HTMLDivElement>(null);
 
   // Create dynamic dates for appointments (same logic as Appointments.tsx)
@@ -290,22 +307,37 @@ const VoiceModePage: React.FC = () => {
     
     // If TTS is enabled, provide an audio explanation of the risk profile
     if (isTtsEnabled) {
+      // Wait longer to ensure the previous TTS message completes before starting explanation
       setTimeout(() => {
-        // Calculate current risk for the explanation
-        const baseRisk = 10;
-        const currentRisk = Math.min(100, baseRisk + 0 + 15); // Default smoking=0, activity=15 (10-30 min)
+        // Check if TTS is still playing and wait if needed
+        const checkAndPlayExplanation = () => {
+          if (!isPlaying) {
+            // Calculate current risk using the same logic as RiskProfileWidget
+            // Default values: smoking=0 (0! cigarettes), activity=6 (10-30 minutes)
+            const baseRisk = 10;
+            const defaultSmokingValue = 0; // First option: "0!" cigarettes
+            const defaultActivityValue = 6; // Third option: "10-30 minutes"
+            const currentRisk = Math.min(100, baseRisk + defaultSmokingValue + defaultActivityValue);
+            
+            const shortRiskExplanation = `Your current overall risk level is ${currentRisk} percent.
+            Would you like to know more about the factors contributing to your risk?`;
+            
+            const longRiskExplanation = `Your current overall risk level is ${currentRisk} percent. 
+            the display shows a grid of faces - green smiling faces represent lower risk areas, while red frowning faces indicate higher risk areas. 
+            you can interact with the smoking and exercise controls below to see how lifestyle changes affect your risk. 
+            reducing smoking and increasing physical activity can improve your cardiovascular health and lower your risk profile.`;
+            
+            const riskExplanation = isLongModeEnabled ? longRiskExplanation : shortRiskExplanation;
+            
+            textToSpeech(riskExplanation);
+          } else {
+            // If still playing, wait another 500ms and check again
+            setTimeout(checkAndPlayExplanation, 200);
+          }
+        };
         
-        const shortRiskExplanation = `Here is your cardiovascular risk profile. Your current overall risk level is ${currentRisk} percent.`;
-        
-        const longRiskExplanation = `Here is your cardiovascular risk profile. Your current overall risk level is ${currentRisk} percent. 
-        The display shows a grid of faces - green smiling faces represent lower risk areas, while red frowning faces indicate higher risk areas. 
-        You can interact with the smoking and exercise controls below to see how lifestyle changes affect your risk. 
-        Reducing smoking and increasing physical activity can improve your cardiovascular health and lower your risk profile.`;
-        
-        const riskExplanation = isLongModeEnabled ? longRiskExplanation : shortRiskExplanation;
-        
-        textToSpeech(riskExplanation);
-      }, 1000); // Delay to allow the widget to render first
+        checkAndPlayExplanation();
+      }, 2000); // Increased delay to give more time for the widget message to complete
     }
   };
 
@@ -544,7 +576,7 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
 
       const mp3 = await openai.audio.speech.create({
         model: "tts-1",
-        voice: "alloy",
+        voice: selectedTtsVoice,
         input: text,
         speed: 1.0
       });
@@ -852,6 +884,24 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
                 >
                   <Info className="h-5 w-5" />
                 </button>
+                {/* Voice Selection Dropdown */}
+                <div className="flex items-center gap-2 bg-white bg-opacity-90 px-3 py-1 rounded-full border border-gray-300">
+                  <label htmlFor="voice-select-overlay" className="text-xs font-medium text-gray-700">
+                    Voice:
+                  </label>
+                  <select
+                    id="voice-select-overlay"
+                    value={selectedTtsVoice}
+                    onChange={(e) => setSelectedTtsVoice(e.target.value as TTSVoice)}
+                    className="text-xs bg-transparent border-none outline-none text-gray-700 pr-4"
+                  >
+                    {TTS_VOICES.map((voice) => (
+                      <option key={voice.value} value={voice.value}>
+                        {voice.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 {isPlaying && (
                   <button
                     onClick={stopTtsPlayback}
