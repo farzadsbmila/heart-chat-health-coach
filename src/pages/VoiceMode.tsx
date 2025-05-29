@@ -35,10 +35,15 @@ interface Appointment {
   location?: string;
 }
 
+interface AppointmentMessage extends Message {
+  type: 'appointment';
+  appointments: Appointment[];
+}
+
 const VoiceModePage: React.FC = () => {
   const navigate = useNavigate();
   const [showChatOverlay, setShowChatOverlay] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [chatMessages, setChatMessages] = useState<(Message | AppointmentMessage)[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -174,23 +179,25 @@ const VoiceModePage: React.FC = () => {
       return;
     }
 
-    // Create appointment display message
-    let appointmentsList = "Here are your upcoming appointments:\n\n";
-    
+    // Create text version for AI conversation history
+    let appointmentTextForAI = "Here are your upcoming appointments:\n\n";
     sortedAppointments.forEach((appointment, index) => {
-      appointmentsList += `${index + 1}. **${appointment.specialty}** with ${appointment.doctor}\n`;
-      appointmentsList += `   📅 ${formatAppointmentDate(appointment.date)} at ${formatTime(appointment.time)}\n`;
+      appointmentTextForAI += `${index + 1}. ${appointment.specialty} with ${appointment.doctor}\n`;
+      appointmentTextForAI += `   Date: ${formatAppointmentDate(appointment.date)} at ${formatTime(appointment.time)}\n`;
       if (appointment.location) {
-        appointmentsList += `   📍 ${appointment.location}\n`;
+        appointmentTextForAI += `   Location: ${appointment.location}\n`;
       }
-      appointmentsList += "\n";
+      appointmentTextForAI += "\n";
     });
 
-    const appointmentsMessage: Message = {
+    // Create appointment message with visual data
+    const appointmentsMessage: AppointmentMessage = {
       id: Date.now().toString(),
-      content: appointmentsList.trim(),
+      content: appointmentTextForAI.trim(), // This is what AI sees in conversation history
       role: 'assistant',
-      timestamp: new Date()
+      timestamp: new Date(),
+      type: 'appointment',
+      appointments: sortedAppointments
     };
     setChatMessages(prev => [...prev, appointmentsMessage]);
   };
@@ -375,7 +382,15 @@ Always be supportive and professional in your responses.`;
 
       // Get AI response
       try {
-        const aiResponse = await callLLM(messageText.trim(), chatMessages);
+        // Convert mixed messages to regular messages for AI conversation history
+        const conversationForAI = chatMessages.map(msg => ({
+          id: msg.id,
+          content: msg.content, // This will be the text version for both regular and appointment messages
+          role: msg.role,
+          timestamp: msg.timestamp
+        } as Message));
+        
+        const aiResponse = await callLLM(messageText.trim(), conversationForAI);
         const botMessage: Message = {
           id: (Date.now() + 1).toString(),
           content: aiResponse,
@@ -488,19 +503,65 @@ Always be supportive and professional in your responses.`;
             ref={chatMessagesRef}
             className="flex-1 overflow-y-auto px-4 py-8 scroll-smooth max-w-4xl mx-auto w-full"
           >
-            {chatMessages.map((message, index) => (
-              <div key={index} className={`mb-6 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
-                <div
-                  className={`inline-block max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
-                    message.role === 'user'
-                      ? 'bg-white text-gray-800'
-                      : 'bg-black bg-opacity-80 text-white'
-                  }`}
-                >
-                  <p className="text-lg">{message.content}</p>
-                </div>
-              </div>
-            ))}
+            {chatMessages.map((message, index) => {
+              // Check if this is an appointment message
+              const isAppointmentMessage = (message as AppointmentMessage).type === 'appointment';
+              
+              if (isAppointmentMessage) {
+                const appointmentMessage = message as AppointmentMessage;
+                return (
+                  <div key={index} className="mb-6 text-left">
+                    <div className="space-y-4">
+                      {appointmentMessage.appointments.map((appointment) => (
+                        <div 
+                          key={appointment.id} 
+                          className="flex items-center gap-4 p-4 rounded-lg border-2 border-gray-200 bg-white hover:border-heart transition-colors"
+                        >
+                          <div className="bg-teal-100 p-3 rounded-full">
+                            <Stethoscope className="h-6 w-6 text-teal-500" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-800">
+                              Appointment with {appointment.specialty}
+                            </h3>
+                            <p className="text-gray-600 font-bold underline">
+                              {formatAppointmentDate(appointment.date)} at {formatTime(appointment.time)}
+                            </p>
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                              <div className="flex items-center gap-1">
+                                <Stethoscope className="h-4 w-4" />
+                                <span>{appointment.doctor}</span>
+                              </div>
+                              {appointment.location && (
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>{appointment.location}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              } else {
+                // Regular text message
+                return (
+                  <div key={index} className={`mb-6 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+                    <div
+                      className={`inline-block max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
+                        message.role === 'user'
+                          ? 'bg-white text-gray-800'
+                          : 'bg-black bg-opacity-80 text-white'
+                      }`}
+                    >
+                      <p className="text-lg">{message.content}</p>
+                    </div>
+                  </div>
+                );
+              }
+            })}
             
             {isProcessing && (
               <div className="text-center py-4">
