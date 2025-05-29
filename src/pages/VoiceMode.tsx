@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import HomeButton from "@/components/HomeButton";
 import BottomNav from "@/components/BottomNav";
 import ChatMessage from "@/components/ChatMessage";
+import RiskProfileWidget from "@/components/RiskProfileWidget";
 import { Message } from "@/types";
 import OpenAI from 'openai';
 
@@ -40,6 +41,10 @@ interface AppointmentMessage extends Message {
   appointments: Appointment[];
 }
 
+interface RiskProfileMessage extends Message {
+  type: 'risk_profile';
+}
+
 interface AppointmentData {
   doctor?: string;
   specialty?: string;
@@ -63,7 +68,7 @@ type AgentType = 'main' | 'appointment_scheduler';
 const VoiceModePage: React.FC = () => {
   const navigate = useNavigate();
   const [showChatOverlay, setShowChatOverlay] = useState(false);
-  const [chatMessages, setChatMessages] = useState<(Message | AppointmentMessage)[]>([]);
+  const [chatMessages, setChatMessages] = useState<(Message | AppointmentMessage | RiskProfileMessage)[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -181,6 +186,17 @@ const VoiceModePage: React.FC = () => {
       return aiResponse.replace(/\[show_appointments\]/gi, '').trim();
     }
 
+    // Check if the response contains risk profile viewing instructions
+    if (lowercaseResponse.includes('[show_risk_profile]')) {
+      // Add risk profile to chat after a short delay
+      setTimeout(() => {
+        displayRiskProfileInChat();
+      }, 500);
+      
+      // Return the response without the risk profile command
+      return aiResponse.replace(/\[show_risk_profile\]/gi, '').trim();
+    }
+
     // Check if the response contains agent handoff instructions
     if (lowercaseResponse.includes('[handoff_to_scheduler]')) {
       // Switch to appointment scheduling agent
@@ -244,6 +260,19 @@ const VoiceModePage: React.FC = () => {
     setChatMessages(prev => [...prev, appointmentsMessage]);
   };
 
+  // Function to display risk profile in chat
+  const displayRiskProfileInChat = () => {
+    // Create risk profile message with the widget component
+    const riskProfileMessage: RiskProfileMessage = {
+      id: Date.now().toString(),
+      content: "Here is your cardiovascular risk profile with interactive controls:",
+      role: 'assistant',
+      timestamp: new Date(),
+      type: 'risk_profile'
+    };
+    setChatMessages(prev => [...prev, riskProfileMessage]);
+  };
+
   const callLLM = async (userMessage: string, conversationHistory: Message[]): Promise<string> => {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
     
@@ -280,6 +309,13 @@ Examples of appointment viewing responses:
 - "Here are your scheduled appointments. [show_appointments]"
 - "I'll display your current appointments for you. [show_appointments]"
 
+IMPORTANT: You can also show users their cardiovascular risk profile. When a user asks to see their risk profile, cardiovascular risk, health risks, or asks "what is my risk profile", include this command in your response: [show_risk_profile]
+
+Examples of risk profile viewing responses:
+- "Let me show you your cardiovascular risk profile. [show_risk_profile]"
+- "Here is your current risk assessment. [show_risk_profile]"
+- "I'll display your health risk profile for you. [show_risk_profile]"
+
 IMPORTANT: When a user wants to schedule a NEW appointment, book an appointment, or create an appointment, you should hand off to the appointment scheduling specialist. Use this command: [handoff_to_scheduler]
 
 Examples of scheduling handoff responses:
@@ -295,6 +331,7 @@ Keep responses concise and friendly. If users ask about serious symptoms, advise
 - Emergency guidance
 - Navigation between app sections
 - Viewing current appointments
+- Viewing cardiovascular risk profile
 - Handoff to appointment scheduling
 
 Always be supportive and professional in your responses.`;
@@ -513,12 +550,25 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
       // Get AI response
       try {
         // Convert mixed messages to regular messages for AI conversation history
-        const conversationForAI = chatMessages.map(msg => ({
-          id: msg.id,
-          content: msg.content, // This will be the text version for both regular and appointment messages
-          role: msg.role,
-          timestamp: msg.timestamp
-        } as Message));
+        const conversationForAI = chatMessages.map(msg => {
+          if ((msg as AppointmentMessage).type === 'appointment') {
+            return {
+              id: msg.id,
+              content: msg.content, // This will be the text version for appointment messages
+              role: msg.role,
+              timestamp: msg.timestamp
+            } as Message;
+          } else if ((msg as RiskProfileMessage).type === 'risk_profile') {
+            return {
+              id: msg.id,
+              content: msg.content, // This will be the text version for risk profile messages
+              role: msg.role,
+              timestamp: msg.timestamp
+            } as Message;
+          } else {
+            return msg as Message;
+          }
+        });
         
         const aiResponse = await callLLM(messageText.trim(), conversationForAI);
         const botMessage: Message = {
@@ -663,6 +713,7 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
             {chatMessages.map((message, index) => {
               // Check if this is an appointment message
               const isAppointmentMessage = (message as AppointmentMessage).type === 'appointment';
+              const isRiskProfileMessage = (message as RiskProfileMessage).type === 'risk_profile';
               
               if (isAppointmentMessage) {
                 const appointmentMessage = message as AppointmentMessage;
@@ -700,6 +751,12 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
                         </div>
                       ))}
                     </div>
+                  </div>
+                );
+              } else if (isRiskProfileMessage) {
+                return (
+                  <div key={index} className="mb-6 text-left">
+                    <RiskProfileWidget />
                   </div>
                 );
               } else {
