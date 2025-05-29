@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, X, Send } from "lucide-react";
+import { Mic, X, Send, Stethoscope, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import HomeButton from "@/components/HomeButton";
 import BottomNav from "@/components/BottomNav";
@@ -26,6 +26,15 @@ const NAVIGATION_SECTIONS = {
 // Toggle to enable/disable text input in voice mode
 const ENABLE_TEXT_INPUT = true;
 
+interface Appointment {
+  id: string;
+  doctor: string;
+  specialty: string;
+  date: string;
+  time: string;
+  location?: string;
+}
+
 const VoiceModePage: React.FC = () => {
   const navigate = useNavigate();
   const [showChatOverlay, setShowChatOverlay] = useState(false);
@@ -35,6 +44,74 @@ const VoiceModePage: React.FC = () => {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [textInput, setTextInput] = useState("");
   const chatMessagesRef = useRef<HTMLDivElement>(null);
+
+  // Create dynamic dates for appointments (same logic as Appointments.tsx)
+  const getDatePlusDays = (days: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date.toISOString().split('T')[0];
+  };
+
+  const getDatePlusMonths = (months: number) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() + months);
+    return date.toISOString().split('T')[0];
+  };
+
+  // Sample appointments data (same as Appointments.tsx)
+  const [appointments] = useState<Appointment[]>([
+    {
+      id: '1',
+      doctor: 'Dr. Smith',
+      specialty: 'Cardiologist',
+      date: getDatePlusDays(1), // Tomorrow
+      time: '10:00',
+      location: 'Heart Center, Room 205'
+    },
+    {
+      id: '2',
+      doctor: 'Dr. Johnson',
+      specialty: 'Cardiologist',
+      date: getDatePlusMonths(1), // Next month
+      time: '14:30',
+      location: 'Cardiac Clinic, Floor 3'
+    }
+  ]);
+
+  // Utility functions for formatting (same as Appointments.tsx)
+  const formatAppointmentDate = (dateString: string) => {
+    const appointmentDate = new Date(dateString + 'T00:00:00');
+    const today = new Date();
+    const timeDiff = appointmentDate.getTime() - today.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    if (daysDiff <= 7 && daysDiff > 0) {
+      const dayName = dayNames[appointmentDate.getDay()];
+      const month = monthNames[appointmentDate.getMonth()];
+      const day = appointmentDate.getDate();
+      const year = appointmentDate.getFullYear();
+      return `this ${dayName}, ${month} ${day} ${year}`;
+    } else {
+      const month = monthNames[appointmentDate.getMonth()];
+      const day = appointmentDate.getDate();
+      const year = appointmentDate.getFullYear();
+      return `on ${month} ${day} ${year}`;
+    }
+  };
+
+  const formatTime = (timeString: string) => {
+    const [hours, minutes] = timeString.split(':');
+    const hour24 = parseInt(hours);
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+    const ampm = hour24 >= 12 ? 'PM' : 'AM';
+    return `${hour12}:${minutes} ${ampm}`;
+  };
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -65,8 +142,57 @@ const VoiceModePage: React.FC = () => {
         }
       }
     }
+
+    // Check if the response contains appointment viewing instructions
+    if (lowercaseResponse.includes('[show_appointments]')) {
+      // Add appointments to chat after a short delay
+      setTimeout(() => {
+        displayAppointmentsInChat();
+      }, 500);
+      
+      // Return the response without the appointment command
+      return aiResponse.replace(/\[show_appointments\]/gi, '').trim();
+    }
     
     return aiResponse;
+  };
+
+  // Function to display appointments in chat
+  const displayAppointmentsInChat = () => {
+    const sortedAppointments = appointments.sort((a, b) => 
+      new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime()
+    );
+
+    if (sortedAppointments.length === 0) {
+      const noAppointmentsMessage: Message = {
+        id: Date.now().toString(),
+        content: "You don't have any upcoming appointments scheduled.",
+        role: 'assistant',
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, noAppointmentsMessage]);
+      return;
+    }
+
+    // Create appointment display message
+    let appointmentsList = "Here are your upcoming appointments:\n\n";
+    
+    sortedAppointments.forEach((appointment, index) => {
+      appointmentsList += `${index + 1}. **${appointment.specialty}** with ${appointment.doctor}\n`;
+      appointmentsList += `   📅 ${formatAppointmentDate(appointment.date)} at ${formatTime(appointment.time)}\n`;
+      if (appointment.location) {
+        appointmentsList += `   📍 ${appointment.location}\n`;
+      }
+      appointmentsList += "\n";
+    });
+
+    const appointmentsMessage: Message = {
+      id: Date.now().toString(),
+      content: appointmentsList.trim(),
+      role: 'assistant',
+      timestamp: new Date()
+    };
+    setChatMessages(prev => [...prev, appointmentsMessage]);
   };
 
   const callLLM = async (userMessage: string, conversationHistory: Message[]): Promise<string> => {
@@ -98,6 +224,13 @@ Examples of navigation responses:
 - "Let me open the risk profile for you. [navigate: risk]"
 - "Sure, I'll navigate you to the recommendations section. [navigate: recommendations]"
 
+IMPORTANT: You can also show users their current appointments. When a user asks to see their appointments, upcoming appointments, scheduled appointments, or asks "what appointments do I have", include this command in your response: [show_appointments]
+
+Examples of appointment viewing responses:
+- "Let me show you your upcoming appointments. [show_appointments]"
+- "Here are your scheduled appointments. [show_appointments]"
+- "I'll display your current appointments for you. [show_appointments]"
+
 Keep responses concise and friendly. If users ask about serious symptoms, advise them to contact their healthcare provider immediately. You can help with:
 - General health questions
 - Appointment scheduling guidance
@@ -106,6 +239,7 @@ Keep responses concise and friendly. If users ask about serious symptoms, advise
 - Lifestyle recommendations
 - Emergency guidance
 - Navigation between app sections
+- Viewing current appointments
 
 Always be supportive and professional in your responses.`;
 
@@ -287,8 +421,8 @@ Always be supportive and professional in your responses.`;
       setChatMessages([{
         id: Date.now().toString(),
         content: ENABLE_TEXT_INPUT 
-          ? "Hello! I'm your health assistant. How can I help you today? I can answer health questions, help with appointments, and even navigate you to different sections of the app. You can speak using the microphone or type your message!"
-          : "Hello! I'm your health assistant. How can I help you today? I can answer health questions, help with appointments, and even navigate you to different sections of the app. Just tap the microphone and start speaking!",
+          ? "Hello! I'm your health assistant. How can I help you today? I can answer health questions, help with appointments, show your scheduled appointments, and even navigate you to different sections of the app. You can speak using the microphone or type your message!"
+          : "Hello! I'm your health assistant. How can I help you today? I can answer health questions, help with appointments, show your scheduled appointments, and even navigate you to different sections of the app. Just tap the microphone and start speaking!",
         role: 'assistant',
         timestamp: new Date()
       }]);
