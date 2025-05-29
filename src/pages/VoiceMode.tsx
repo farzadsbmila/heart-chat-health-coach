@@ -186,48 +186,18 @@ Always be supportive and professional in your responses.`;
       };
 
       recorder.onstop = async () => {
-        setIsProcessing(true);
         try {
           const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
           const transcription = await transcribeAudio(audioBlob);
           
           if (transcription.trim()) {
-            // Add user message
-            const userMessage: Message = {
-              id: Date.now().toString(),
-              content: transcription.trim(),
-              role: 'user',
-              timestamp: new Date()
-            };
-            setChatMessages(prev => [...prev, userMessage]);
-
-            // Get AI response
-            try {
-              const aiResponse = await callLLM(transcription.trim(), chatMessages);
-              const botMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                content: aiResponse,
-                role: 'assistant',
-                timestamp: new Date()
-              };
-              setChatMessages(prev => [...prev, botMessage]);
-            } catch (error) {
-              const errorMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                content: 'Sorry, I encountered an error. Please try again.',
-                role: 'assistant',
-                timestamp: new Date()
-              };
-              setChatMessages(prev => [...prev, errorMessage]);
-            }
+            await processUserMessage(transcription.trim());
           } else {
             alert('No speech detected. Please try again.');
           }
         } catch (error) {
           console.error('Transcription error:', error);
           alert('Failed to transcribe audio. Please try again.');
-        } finally {
-          setIsProcessing(false);
         }
         
         // Clean up media stream
@@ -251,18 +221,16 @@ Always be supportive and professional in your responses.`;
     }
   };
 
-  const sendTextMessage = async () => {
-    if (!textInput.trim() || isProcessing) return;
+  const processUserMessage = async (messageText: string) => {
+    if (!messageText.trim()) return;
     
-    const messageText = textInput.trim();
-    setTextInput("");
     setIsProcessing(true);
 
     try {
       // Add user message
       const userMessage: Message = {
         id: Date.now().toString(),
-        content: messageText,
+        content: messageText.trim(),
         role: 'user',
         timestamp: new Date()
       };
@@ -270,7 +238,7 @@ Always be supportive and professional in your responses.`;
 
       // Get AI response
       try {
-        const aiResponse = await callLLM(messageText, chatMessages);
+        const aiResponse = await callLLM(messageText.trim(), chatMessages);
         const botMessage: Message = {
           id: (Date.now() + 1).toString(),
           content: aiResponse,
@@ -288,10 +256,19 @@ Always be supportive and professional in your responses.`;
         setChatMessages(prev => [...prev, errorMessage]);
       }
     } catch (error) {
-      console.error('Error sending text message:', error);
+      console.error('Error processing message:', error);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const sendTextMessage = async () => {
+    if (!textInput.trim() || isProcessing) return;
+    
+    const messageText = textInput.trim();
+    setTextInput("");
+    
+    await processUserMessage(messageText);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
