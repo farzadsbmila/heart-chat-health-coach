@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, X, Send, Stethoscope, Calendar } from "lucide-react";
+import { Mic, X, Send, Stethoscope, Calendar, Volume2, VolumeX } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import HomeButton from "@/components/HomeButton";
 import BottomNav from "@/components/BottomNav";
@@ -67,9 +67,7 @@ type AgentType = 'main' | 'appointment_scheduler';
 
 // Welcome message constants
 const WELCOME_MESSAGE_WITH_TEXT_INPUT = `Hello! I'm your health assistant. How can I help you today? 
-I can answer health questions, help with appointments, show your scheduled appointments, 
-and even navigate you to different sections of the app. 
-You can speak using the microphone or type your message!`;
+I can answer health questions, help with appointments and show your risks.`; 
 
 const WELCOME_MESSAGE_VOICE_ONLY = `Hello! I'm your health assistant. How can I help you today? 
 I can answer health questions, help with appointments, show your scheduled appointments, 
@@ -86,6 +84,9 @@ const VoiceModePage: React.FC = () => {
   const [textInput, setTextInput] = useState("");
   const [activeAgent, setActiveAgent] = useState<AgentType>('main');
   const [appointmentData, setAppointmentData] = useState<AppointmentData>({});
+  const [isTtsEnabled, setIsTtsEnabled] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const chatMessagesRef = useRef<HTMLDivElement>(null);
 
   // Create dynamic dates for appointments (same logic as Appointments.tsx)
@@ -222,6 +223,9 @@ const VoiceModePage: React.FC = () => {
           timestamp: new Date()
         };
         setChatMessages(prev => [...prev, handoffMessage]);
+        
+        // Read the handoff message aloud
+        textToSpeech(handoffMessage.content);
       }, 500);
       
       // Return the response without the handoff command
@@ -442,6 +446,9 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
                 timestamp: new Date()
               };
               setChatMessages(prev => [...prev, completionMessage]);
+              
+              // Read the completion message aloud
+              textToSpeech(completionMessage.content);
             }, 500);
           }
           
@@ -490,7 +497,81 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
     }
   };
 
+  const textToSpeech = async (text: string): Promise<void> => {
+    if (!isTtsEnabled || !text.trim()) return;
+
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    
+    if (!apiKey) {
+      console.error('OpenAI API key not configured for text-to-speech.');
+      return;
+    }
+
+    try {
+      // Stop any currently playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+
+      setIsPlaying(true);
+
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true
+      });
+
+      const mp3 = await openai.audio.speech.create({
+        model: "tts-1",
+        voice: "alloy",
+        input: text,
+        speed: 1.0
+      });
+
+      const audioBuffer = await mp3.arrayBuffer();
+      const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      const audio = new Audio(audioUrl);
+      setCurrentAudio(audio);
+
+      audio.onended = () => {
+        setIsPlaying(false);
+        setCurrentAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        console.error('Error playing TTS audio');
+        setIsPlaying(false);
+        setCurrentAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Text-to-speech error:', error);
+      setIsPlaying(false);
+      setCurrentAudio(null);
+    }
+  };
+
+  const stopTtsPlayback = () => {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      setCurrentAudio(null);
+      setIsPlaying(false);
+    }
+  };
+
   const startVoiceRecording = async () => {
+    // Prevent recording while TTS is playing
+    if (isPlaying) {
+      alert('Please wait for the current speech to finish before recording.');
+      return;
+    }
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { 
@@ -589,6 +670,11 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
           timestamp: new Date()
         };
         setChatMessages(prev => [...prev, botMessage]);
+        
+        // Read the response aloud using TTS
+        if (aiResponse.trim()) {
+          await textToSpeech(aiResponse);
+        }
       } catch (error) {
         const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -632,8 +718,16 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
         role: 'assistant',
         timestamp: new Date()
       }]);
+      
+      // Read welcome message aloud
+      if (isTtsEnabled) {
+        const welcomeMessage = ENABLE_TEXT_INPUT 
+          ? WELCOME_MESSAGE_WITH_TEXT_INPUT
+          : WELCOME_MESSAGE_VOICE_ONLY;
+        textToSpeech(welcomeMessage);
+      }
     } else {
-      if (isProcessing) return;
+      if (isProcessing || isPlaying) return;
       
       if (isRecording) {
         stopVoiceRecording();
@@ -649,6 +743,10 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
     setTextInput("");
     setActiveAgent('main');
     setAppointmentData({});
+    
+    // Clean up audio
+    stopTtsPlayback();
+    
     if (isRecording) {
       stopVoiceRecording();
     }
@@ -708,12 +806,37 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
                 {activeAgent === 'main' ? '🏥 Health Assistant' : '📅 Appointment Scheduler'}
               </span>
             </div>
-            <button
-              onClick={closeChatOverlay}
-              className="text-gray-800 hover:text-gray-600 p-2 rounded-full bg-gray-200 bg-opacity-50"
-            >
-              <X className="h-8 w-8" />
-            </button>
+            <div className="flex items-center gap-2">
+              {/* TTS Controls */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsTtsEnabled(!isTtsEnabled)}
+                  className={`p-2 rounded-full transition-colors ${
+                    isTtsEnabled 
+                      ? 'bg-green-500 text-white hover:bg-green-600' 
+                      : 'bg-gray-300 text-gray-600 hover:bg-gray-400'
+                  }`}
+                  title={isTtsEnabled ? 'Disable Text-to-Speech' : 'Enable Text-to-Speech'}
+                >
+                  {isTtsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+                </button>
+                {isPlaying && (
+                  <button
+                    onClick={stopTtsPlayback}
+                    className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 animate-pulse"
+                    title="Stop current speech"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={closeChatOverlay}
+                className="text-gray-800 hover:text-gray-600 p-2 rounded-full bg-gray-200 bg-opacity-50"
+              >
+                <X className="h-8 w-8" />
+              </button>
+            </div>
           </div>
           
           {/* Messages Area */}
@@ -827,25 +950,29 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
           <div className="flex flex-col items-center py-4">
             <button
               onClick={() => {
-                if (isProcessing) return;
+                if (isProcessing || isPlaying) return;
                 if (isRecording) {
                   stopVoiceRecording();
                 } else {
                   startVoiceRecording();
                 }
               }}
-              disabled={isProcessing}
+              disabled={isProcessing || isPlaying}
               className={`rounded-full p-6 text-white transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed ${
                 isRecording 
                   ? 'bg-red-500 hover:bg-red-600 animate-pulse shadow-2xl' 
-                  : 'bg-blue-500 hover:bg-blue-600 shadow-2xl'
+                  : isPlaying
+                    ? 'bg-orange-500 shadow-2xl'
+                    : 'bg-blue-500 hover:bg-blue-600 shadow-2xl'
               }`}
               title={
                 isProcessing 
                   ? "Processing..." 
-                  : isRecording 
-                    ? "Stop recording" 
-                    : "Start recording"
+                  : isPlaying
+                    ? "Speaking... Please wait"
+                    : isRecording 
+                      ? "Stop recording" 
+                      : "Start recording"
               }
             >
               <Mic className="h-10 w-10" />
@@ -853,9 +980,11 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
             <p className="text-center text-gray-800 text-lg mt-4 font-medium">
               {isProcessing 
                 ? "Processing your message..." 
-                : isRecording 
-                  ? "Recording... Tap to stop" 
-                  : "Tap microphone to speak"
+                : isPlaying
+                  ? "Speaking... Please wait"
+                  : isRecording 
+                    ? "Recording... Tap to stop" 
+                    : "Tap microphone to speak"
               }
             </p>
           </div>
