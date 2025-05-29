@@ -65,6 +65,17 @@ interface SchedulingResponse {
 
 type AgentType = 'main' | 'appointment_scheduler';
 
+// Welcome message constants
+const WELCOME_MESSAGE_WITH_TEXT_INPUT = `Hello! I'm your health assistant. How can I help you today? 
+I can answer health questions, help with appointments, show your scheduled appointments, 
+and even navigate you to different sections of the app. 
+You can speak using the microphone or type your message!`;
+
+const WELCOME_MESSAGE_VOICE_ONLY = `Hello! I'm your health assistant. How can I help you today? 
+I can answer health questions, help with appointments, show your scheduled appointments, 
+and even navigate you to different sections of the app. 
+Just tap the microphone and start speaking!`;
+
 const VoiceModePage: React.FC = () => {
   const navigate = useNavigate();
   const [showChatOverlay, setShowChatOverlay] = useState(false);
@@ -616,8 +627,8 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
       setChatMessages([{
         id: Date.now().toString(),
         content: ENABLE_TEXT_INPUT 
-          ? "Hello! I'm your health assistant. How can I help you today? I can answer health questions, help with appointments, show your scheduled appointments, and even navigate you to different sections of the app. You can speak using the microphone or type your message!"
-          : "Hello! I'm your health assistant. How can I help you today? I can answer health questions, help with appointments, show your scheduled appointments, and even navigate you to different sections of the app. Just tap the microphone and start speaking!",
+          ? WELCOME_MESSAGE_WITH_TEXT_INPUT
+          : WELCOME_MESSAGE_VOICE_ONLY,
         role: 'assistant',
         timestamp: new Date()
       }]);
@@ -764,13 +775,13 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
                 return (
                   <div key={index} className={`mb-6 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
                     <div
-                      className={`inline-block max-w-xs lg:max-w-md px-4 py-3 rounded-lg border-2 border-gray-600 ${
+                      className={`inline-block max-w-xs lg:max-w-md px-4 py-3 rounded-lg border-gray-600 ${
                         message.role === 'user'
-                          ? 'bg-white text-gray-800'
+                          ? 'bg-blue-100 text-gray-800'
                           : 'bg-black bg-opacity-80 text-white'
                       }`}
                     >
-                      <p className="text-2xl" style={{ fontSize: '22px' }}>{message.content}</p>
+                      <p className="text-2xl" style={{ fontSize: '26px' }}>{message.content}</p>
                     </div>
                   </div>
                 );
