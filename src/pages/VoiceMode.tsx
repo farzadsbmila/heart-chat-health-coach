@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, X, Send, Stethoscope, Calendar, Volume2, VolumeX } from "lucide-react";
+import { Mic, X, Send, Stethoscope, Calendar, Volume2, VolumeX, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import HomeButton from "@/components/HomeButton";
 import BottomNav from "@/components/BottomNav";
@@ -87,6 +87,7 @@ const VoiceModePage: React.FC = () => {
   const [isTtsEnabled, setIsTtsEnabled] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [isLongModeEnabled, setIsLongModeEnabled] = useState(false);
   const chatMessagesRef = useRef<HTMLDivElement>(null);
 
   // Create dynamic dates for appointments (same logic as Appointments.tsx)
@@ -286,6 +287,26 @@ const VoiceModePage: React.FC = () => {
       type: 'risk_profile'
     };
     setChatMessages(prev => [...prev, riskProfileMessage]);
+    
+    // If TTS is enabled, provide an audio explanation of the risk profile
+    if (isTtsEnabled) {
+      setTimeout(() => {
+        // Calculate current risk for the explanation
+        const baseRisk = 10;
+        const currentRisk = Math.min(100, baseRisk + 0 + 15); // Default smoking=0, activity=15 (10-30 min)
+        
+        const shortRiskExplanation = `Here is your cardiovascular risk profile. Your current overall risk level is ${currentRisk} percent.`;
+        
+        const longRiskExplanation = `Here is your cardiovascular risk profile. Your current overall risk level is ${currentRisk} percent. 
+        The display shows a grid of faces - green smiling faces represent lower risk areas, while red frowning faces indicate higher risk areas. 
+        You can interact with the smoking and exercise controls below to see how lifestyle changes affect your risk. 
+        Reducing smoking and increasing physical activity can improve your cardiovascular health and lower your risk profile.`;
+        
+        const riskExplanation = isLongModeEnabled ? longRiskExplanation : shortRiskExplanation;
+        
+        textToSpeech(riskExplanation);
+      }, 1000); // Delay to allow the widget to render first
+    }
   };
 
   const callLLM = async (userMessage: string, conversationHistory: Message[]): Promise<string> => {
@@ -819,6 +840,17 @@ Context: You are actively scheduling an appointment. Stay focused on gathering t
                   title={isTtsEnabled ? 'Disable Text-to-Speech' : 'Enable Text-to-Speech'}
                 >
                   {isTtsEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+                </button>
+                <button
+                  onClick={() => setIsLongModeEnabled(!isLongModeEnabled)}
+                  className={`p-2 rounded-full transition-colors ${
+                    isLongModeEnabled 
+                      ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                      : 'bg-gray-300 text-gray-600 hover:bg-gray-400'
+                  }`}
+                  title={isLongModeEnabled ? 'Disable Long Explanations' : 'Enable Long Explanations'}
+                >
+                  <Info className="h-5 w-5" />
                 </button>
                 {isPlaying && (
                   <button
