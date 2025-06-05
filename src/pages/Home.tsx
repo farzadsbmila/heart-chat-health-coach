@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { MessageCircle, BarChart, ListChecks, Activity, Home as HomeIcon, Info, Calendar, Stethoscope, Mic } from "lucide-react";
+import { MessageCircle, BarChart, ListChecks, Activity, Home as HomeIcon, Info, Calendar, Stethoscope, Mic, MessageSquare } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 
 const sections = [
@@ -15,6 +15,12 @@ const sections = [
     path: "/voice-mode",
     icon: <Mic className="h-12 w-12 mb-4 text-heart-dark" />,
     color: "bg-red-100 hover:bg-red-200 border-red-300"
+  },
+  {
+    name: "Medgemma Chat",
+    path: "/medgemma-chat",
+    icon: <MessageSquare className="h-12 w-12 mb-4 text-heart-dark" />,
+    color: "bg-pink-100 hover:bg-pink-200 border-pink-300"
   },
   {
     name: "Risk Profile",

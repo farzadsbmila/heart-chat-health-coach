@@ -13,6 +13,7 @@ import AlertsPage from "@/pages/Alerts";
 import CalendarPage from "@/pages/Calendar";
 import AppointmentsPage from "@/pages/Appointments";
 import VoiceModePage from "@/pages/VoiceMode";
+import MedGemmaChatPage from "@/pages/MedGemmaChat";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/chat" element={<Index />} />
           <Route path="/voice-mode" element={<VoiceModePage />} />
+          <Route path="/medgemma-chat" element={<MedGemmaChatPage />} />
           <Route path="/risk-profile" element={<RiskProfileSection />} />
           <Route path="/recommendations" element={<RecommendationsSection />} />
           <Route path="/coaching" element={<CoachingSection />} />
